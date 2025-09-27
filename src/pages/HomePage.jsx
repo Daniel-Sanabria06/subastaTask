@@ -27,6 +27,7 @@ const HomePage = () => {
           <h2 className="section-title animate-slide-in">Bienvenido a SubastaTask</h2>
           <p className="section-description animate-slide-in">
             La plataforma donde usuarios, clientes y trabajadores pueden conectarse a través de subastas de servicios y tareas.
+          HIZE ESTE CAMBIO
           </p>
           <div className="mt-8">
             <Link to="/login" className="btn-primary animate-bounce-in">
