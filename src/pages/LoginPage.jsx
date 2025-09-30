@@ -25,22 +25,28 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { email, password } = formData; 
     try {
       // Mostrar estado de carga
       setIsLoaded(false);
       
       // Iniciar sesión con Supabase
-      const { success, error } = await loginUser(formData.email, formData.password);
+      const { success, data, error } = await loginUser(email, password);
       
-      if (success) {
+      if (success&& data.profile) {
         // Redirigir al dashboard o página principal
-        navigate('/');
-      } else {
-        alert(`Error al iniciar sesión: ${error.message}`);
+        // Redirect based on user profile
+    const redirectPath = data.profile.type === 'cliente' 
+    ? '/cliente-dashboard' 
+    : '/trabajador-dashboard';
+  navigate(redirectPath);
+} else {
+  alert('Error al iniciar sesión: ' + error.message);
+        
       }
     } catch (error) {
       console.error('Error en el inicio de sesión:', error);
-      alert('Ocurrió un error durante el inicio de sesión');
+      alert('Error de autenticación. Por favor, verifica tus credenciales');
     } finally {
       setIsLoaded(true);
     }
