@@ -62,7 +62,7 @@ export const registerUser = async (userData) => {
     
     return { success: true };
   } catch (error) {
-    console.error('Error en registerUser:', error);
+    console.error('Error al registrarse :', error);
     return { success: false, error };
   }
 };
@@ -75,17 +75,39 @@ export const registerUser = async (userData) => {
  */
 export const loginUser = async (email, password) => {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: authError  } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw error;
+    if (authError) throw authError;
     
-    return { success: true, data };
+     // Get user profile type (cliente or trabajador)
+     const { data: clienteData } = await supabase
+     .from('clientes')
+     .select('*')
+     .eq('correo', email)
+     .single();
+
+   const { data: trabajadorData } = await supabase
+     .from('trabajadores')
+     .select('*')
+     .eq('correo', email)
+     .single();
+
+   const userProfile = {
+     type: clienteData ? 'cliente' : 'trabajador',
+     data: clienteData || trabajadorData
+   };
+
+    return { success: true, 
+      data: {
+        user: authData.user,
+        profile: userProfile
+      } };
   } catch (error) {
-    console.error('Error en loginUser:', error);
-    return { success: false, error };
+    console.error('Error en login Usuario:', error);
+    return { success: false, error: { message: 'Credenciales incorrectas' } };
   }
 };
 
@@ -111,14 +133,57 @@ export const logoutUser = async () => {
  */
 export const getCurrentUser = async () => {
   try {
-    const { data, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    
-    return { success: true, data };
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if ( authError|| !user) {
+      throw new Error('No se encontró usuario autenticado');
+    }
+
+    // Obtener el perfil del usuario (cliente o trabajador)
+    const { data: clienteData } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('correo', user.email)
+     .single();
+     if (clienteData) {
+      return {
+        success: true,
+        data: {
+          user,
+          profile: {
+            type: 'cliente',
+            data: clienteData
+          }
+        }
+      };
+    }
+
+    // Si no es cliente, buscar en trabajadores
+    const { data: trabajadorData } = await supabase
+      .from('trabajadores')
+      .select('*')
+      .eq('correo', user.email)
+      .single();
+
+    if (trabajadorData) {
+      return {
+        success: true,
+        data: {
+          user,
+          profile: {
+            type: 'trabajador',
+            data: trabajadorData
+          }
+        }
+      };
+    }
+
+    throw new Error('Perfil de usuario no encontrado');
   } catch (error) {
     console.error('Error en getCurrentUser:', error);
-    return { success: false, error };
+    return { 
+      success: false, 
+      error: { message: error.message }
+    };
   }
 };
-
 export default supabase;

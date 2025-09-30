@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import './HomePage.css';
 
 const HomePage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -11,8 +12,8 @@ const HomePage = () => {
   return (
     <div className={`container ${isLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
       <header className="flex justify-between items-center mb-8">
-        <h1 style={{color: 'var(--color-primary)', fontWeight: 'bold', fontSize: '1.875rem'}}>SubastaTask</h1>
-        <div style={{display: 'flex', gap: '1rem'}}>
+        <h1 className="site-title">SubastaTask</h1>
+        <div className="header-buttons">
           <Link to="/login" className="btn-primary animate-bounce-in">
             Iniciar Sesión
           </Link>
@@ -40,11 +41,11 @@ const HomePage = () => {
             <h3 className="card-title primary">Para Clientes</h3>
             <p>Publica tus proyectos y recibe ofertas de profesionales calificados.</p>
           </div>
-          <div className="card animate-slide-in" style={{animationDelay: '0.1s'}}>
+          <div className="card animate-slide-in">
             <h3 className="card-title secondary">Para Trabajadores</h3>
             <p>Encuentra oportunidades de trabajo y ofrece tus servicios a potenciales clientes.</p>
           </div>
-          <div className="card animate-slide-in" style={{animationDelay: '0.2s'}}>
+          <div className="card animate-slide-in">
             <h3 className="card-title accent">Para Todos</h3>
             <p>Una plataforma segura y confiable para conectar oferta y demanda de servicios.</p>
           </div>
