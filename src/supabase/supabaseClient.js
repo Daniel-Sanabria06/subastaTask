@@ -1,150 +1,135 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Inicializar el cliente de Supabase con las variables de entorno
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Inicializar el cliente de Supabase con la URL y clave correctas
+const supabaseUrl = 'https://qoeuubcaktvvpdpungop.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvZXV1YmNha3R2dnBkcHVuZ29wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5ODY0NzMsImV4cCI6MjA3NDU2MjQ3M30.cfwXVj3hm_q3Tg-5gJu14DnAjb_HAPJyTks-dHQdqpQ';
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Configuración para resolver problemas de conexión
+const options = {
+  db: {
+    schema: 'public',
+  },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false
+  },
+  global: {
+    headers: {
+      'apikey': supabaseKey
+    }
+  }
+};
 
-/**
- * Registra un nuevo usuario en Supabase Auth y en la tabla correspondiente según su perfil
- * @param {Object} userData - Datos del usuario a registrar
- * @returns {Object} - Objeto con el resultado de la operación
- */
-export const registerUser = async (userData) => {
+export const supabase = createClient(supabaseUrl, supabaseKey, options);
+
+// Función para registrar un usuario
+export const registerUser = async (formData) => {
   try {
-    // Registrar el usuario en Supabase Auth
+    // Registrar usuario en Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
+      email: formData.email,
+      password: formData.password,
     });
 
-    if (authError) throw authError;
+    if (authError) {
+      return { success: false, error: authError };
+    }
 
-    // Si el registro en Auth fue exitoso, guardar los datos adicionales en la tabla correspondiente
-    const userId = authData.user.id;
+    // Determinar la tabla según el tipo de usuario
+    const tableName = formData.perfil === 'cliente' ? 'clientes' : 'trabajadores';
     
-    // Determinar en qué tabla insertar según el perfil del usuario
-    const tableName = userData.perfil === 'cliente' ? 'clientes' : 'trabajadores';
+    // Preparar datos para insertar en la tabla correspondiente
+    let profileData = {};
     
-    // Preparar los datos comunes para ambos perfiles
-    const commonData = {
-      id: userId,
-      nombre_completo: userData.nombreCompleto,
-      documento: userData.documentoIdentidad,
-      correo: userData.email,
-      edad: parseInt(userData.edad),
-      ciudad: userData.ciudad || 'No especificada', // Campo requerido en ambas tablas
-    };
-    
-    // Si es trabajador, agregar los campos adicionales
-    let profileData = commonData;
-    
-    if (tableName === 'trabajadores') {
+    if (formData.perfil === 'cliente') {
       profileData = {
-        ...commonData,
-        habilidades: userData.habilidades || ['No especificadas'],
-        telefono: userData.telefono || 'No especificado',
-        profesion: userData.profesion || 'No especificada',
+        id: authData.user.id,
+        nombre_completo: formData.nombre_completo,
+        documento: formData.documento,
+        ciudad: formData.ciudad || '',
+        correo: formData.email,
+        edad: parseInt(formData.edad) || 0
+      };
+    } else {
+      // Para trabajadores
+      profileData = {
+        id: authData.user.id,
+        nombre_completo: formData.nombre_completo,
+        documento: formData.documento,
+        ciudad: formData.ciudad || '',
+        correo: formData.email,
+        edad: parseInt(formData.edad) || 0,
+        profesion: formData.profesion || '',
+        habilidades: Array.isArray(formData.habilidades) ? formData.habilidades : [formData.habilidades || ''],
+        telefono: formData.telefono || '',
+        estado_cuenta: 'activa'
       };
     }
-    
+
     // Insertar en la tabla correspondiente
     const { error: profileError } = await supabase
       .from(tableName)
       .insert([profileData]);
-    
+
     if (profileError) {
-      // Si hay error al insertar el perfil, intentar eliminar el usuario de Auth
-      await supabase.auth.admin.deleteUser(userId);
-      throw profileError;
+      return { success: false, error: profileError };
     }
-    
-    return { success: true };
+
+    return { success: true, data: authData.user };
   } catch (error) {
-    console.error('Error al registrarse :', error);
+    console.error('Error en registerUser:', error);
     return { success: false, error };
   }
 };
 
-/**
- * Inicia sesión de un usuario
- * @param {string} email - Correo electrónico del usuario
- * @param {string} password - Contraseña del usuario
- * @returns {Object} - Objeto con el resultado de la operación
- */
+// Función para iniciar sesión
 export const loginUser = async (email, password) => {
   try {
-    const { data: authData, error: authError  } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (authError) throw authError;
+    if (error) {
+      return { success: false, error };
+    }
+
+    // Obtener el perfil del usuario después del login
+    const userProfile = await getCurrentUser();
     
-     // Get user profile type (cliente or trabajador)
-     const { data: clienteData } = await supabase
-     .from('clientes')
-     .select('*')
-     .eq('correo', email)
-     .single();
+    if (userProfile.success) {
+      return { 
+        success: true, 
+        data: userProfile.data
+      };
+    }
 
-   const { data: trabajadorData } = await supabase
-     .from('trabajadores')
-     .select('*')
-     .eq('correo', email)
-     .single();
-
-   const userProfile = {
-     type: clienteData ? 'cliente' : 'trabajador',
-     data: clienteData || trabajadorData
-   };
-
-    return { success: true, 
-      data: {
-        user: authData.user,
-        profile: userProfile
-      } };
+    return { success: true, data };
   } catch (error) {
-    console.error('Error en login Usuario:', error);
-    return { success: false, error: { message: 'Credenciales incorrectas' } };
-  }
-};
-
-/**
- * Cierra la sesión del usuario actual
- * @returns {Object} - Objeto con el resultado de la operación
- */
-export const logoutUser = async () => {
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error en logoutUser:', error);
+    console.error('Error en loginUser:', error);
     return { success: false, error };
   }
 };
 
-/**
- * Obtiene el usuario actualmente autenticado
- * @returns {Object} - Objeto con el resultado de la operación
- */
+// Función para obtener el usuario actual
 export const getCurrentUser = async () => {
   try {
+    // Obtener usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if ( authError|| !user) {
-      throw new Error('No se encontró usuario autenticado');
+
+    if (authError || !user) {
+      return { success: false, error: authError || new Error('No hay usuario autenticado') };
     }
 
-    // Obtener el perfil del usuario (cliente o trabajador)
-    const { data: clienteData } = await supabase
+    // Buscar en la tabla clientes
+    const { data: clienteData, error: clienteError } = await supabase
       .from('clientes')
       .select('*')
-      .eq('correo', user.email)
-     .single();
-     if (clienteData) {
+      .eq('id', user.id)
+      .single();
+
+    if (clienteData) {
       return {
         success: true,
         data: {
@@ -158,10 +143,10 @@ export const getCurrentUser = async () => {
     }
 
     // Si no es cliente, buscar en trabajadores
-    const { data: trabajadorData } = await supabase
+    const { data: trabajadorData, error: trabajadorError } = await supabase
       .from('trabajadores')
       .select('*')
-      .eq('correo', user.email)
+      .eq('id', user.id)
       .single();
 
     if (trabajadorData) {
@@ -177,13 +162,77 @@ export const getCurrentUser = async () => {
       };
     }
 
-    throw new Error('Perfil de usuario no encontrado');
+    // Si no se encuentra en ninguna tabla
+    return {
+      success: false,
+      error: new Error('Usuario no tiene perfil asociado')
+    };
   } catch (error) {
     console.error('Error en getCurrentUser:', error);
-    return { 
-      success: false, 
-      error: { message: error.message }
-    };
+    return { success: false, error };
   }
 };
-export default supabase;
+
+// Función para actualizar el perfil de usuario
+export const updateUserProfile = async (userId, userData, userType) => {
+  try {
+    // Determinar la tabla según el tipo de usuario
+    const tableName = userType === 'cliente' ? 'clientes' : 'trabajadores';
+    
+    // Preparar datos para actualizar
+    let updateData = {};
+    
+    if (userType === 'cliente') {
+      updateData = {
+        nombre_completo: userData.nombre_completo,
+        documento: userData.documento,
+        edad: parseInt(userData.edad) || 0,
+        ciudad: userData.ciudad || '',
+        correo: userData.email
+      };
+    } else {
+      // Para trabajadores
+      updateData = {
+        nombre_completo: userData.nombre_completo,
+        documento: userData.documento,
+        edad: parseInt(userData.edad) || 0,
+        ciudad: userData.ciudad || '',
+        correo: userData.email,
+        profesion: userData.profesion || '',
+        habilidades: Array.isArray(userData.habilidades) ? userData.habilidades : [userData.habilidades || ''],
+        telefono: userData.telefono || ''
+      };
+    }
+    
+    // Actualizar en la tabla correspondiente
+    const { error: updateError } = await supabase
+      .from(tableName)
+      .update(updateData)
+      .eq('id', userId);
+    
+    if (updateError) {
+      return { success: false, error: updateError };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error en updateUserProfile:', error);
+    return { success: false, error };
+  }
+};
+
+// Función para cerrar sesión
+export const logoutUser = async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      return { success: false, error };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error en logoutUser:', error);
+    return { success: false, error };
+  }
+};

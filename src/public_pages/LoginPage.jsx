@@ -33,16 +33,23 @@ const LoginPage = () => {
       // Iniciar sesión con Supabase
       const { success, data, error } = await loginUser(email, password);
       
-      if (success&& data.profile) {
-        // Redirigir al dashboard o página principal
-        // Redirect based on user profile
-    const redirectPath = data.profile.type === 'cliente' 
-    ? '/cliente-dashboard' 
-    : '/trabajador-dashboard';
-  navigate(redirectPath);
-} else {
-  alert('Error al iniciar sesión: ' + error.message);
+      if (success) {
+        console.log('Inicio de sesión exitoso:', data);
         
+        // Redirigir según el tipo de usuario
+        if (data.profile && data.profile.type) {
+          const redirectPath = data.profile.type === 'cliente' 
+            ? '/cliente/dashboard' 
+            : '/trabajador/dashboard';
+          navigate(redirectPath);
+        } else {
+          // Si no hay información del perfil, redirigir a la página principal
+          navigate('/');
+        }
+      } else {
+        // Manejo seguro del error
+        const errorMessage = error && error.message ? error.message : 'Error desconocido al iniciar sesión';
+        alert('Error al iniciar sesión: ' + errorMessage);
       }
     } catch (error) {
       console.error('Error en el inicio de sesión:', error);
