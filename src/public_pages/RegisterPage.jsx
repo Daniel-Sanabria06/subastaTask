@@ -5,8 +5,8 @@ import { registerUser } from '../supabase/supabaseClient';
 const RegisterPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [formData, setFormData] = useState({
-    nombreCompleto: '',
-    documentoIdentidad: '',
+    nombre_completo: '',
+    documento: '',
     email: '',
     edad: '',
     ciudad: '',
@@ -14,9 +14,9 @@ const RegisterPage = () => {
     password: '',
     confirmPassword: '',
     // Campos adicionales para trabajadores
+    profesion: '',
     habilidades: '',
-    telefono: '',
-    profesion: ''
+    telefono: ''
   });
 
   useEffect(() => {
@@ -40,36 +40,13 @@ const RegisterPage = () => {
       alert('Las contraseñas no coinciden');
       return;
     }
-
-    // Validar edad (debe ser entre 18 y 100)
-    const edad = parseInt(formData.edad);
-    if (isNaN(edad) || edad < 18 || edad > 100) {
-      alert('La edad debe ser un número entre 18 y 100');
-      return;
-    }
-    
-    // Validar campos adicionales para trabajadores
-    if (formData.perfil === 'trabajador') {
-      if (!formData.telefono || !formData.profesion || !formData.habilidades) {
-        alert('Por favor complete todos los campos requeridos para trabajadores');
-        return;
-      }
-    }
     
     try {
       // Mostrar estado de carga
       setIsLoaded(false);
       
-      // Preparar datos para el registro
-      const userData = { ...formData };
-      
-      // Convertir habilidades a array si es trabajador
-      if (formData.perfil === 'trabajador' && formData.habilidades) {
-        userData.habilidades = formData.habilidades.split(',').map(skill => skill.trim());
-      }
-      
       // Registrar usuario con Supabase
-      const { success, error } = await registerUser(userData);
+      const { success, error } = await registerUser(formData);
       
       if (success) {
         alert('Usuario registrado correctamente');
@@ -98,14 +75,14 @@ const RegisterPage = () => {
         <div className="card animate-slide-in">
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label htmlFor="nombreCompleto" className="form-label">
+              <label htmlFor="nombre_completo" className="form-label">
                 Nombre Completo
               </label>
               <input
                 type="text"
-                id="nombreCompleto"
-                name="nombreCompleto"
-                value={formData.nombreCompleto}
+                id="nombre_completo"
+                name="nombre_completo"
+                value={formData.nombre_completo}
                 onChange={handleChange}
                 className="input"
                 placeholder="Juan Pérez"
@@ -174,7 +151,7 @@ const RegisterPage = () => {
                 value={formData.ciudad}
                 onChange={handleChange}
                 className="input"
-                placeholder="Bogotá"
+                placeholder="Cali"
                 required
               />
             </div>
@@ -251,20 +228,20 @@ const RegisterPage = () => {
 
             {/* Campos adicionales para trabajadores */}
             {formData.perfil === 'trabajador' && (
-              <div className="trabajador-fields animate-fade-in">
+              <>
                 <div className="form-group">
                   <label htmlFor="telefono" className="form-label">
                     Teléfono
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     id="telefono"
                     name="telefono"
                     value={formData.telefono}
                     onChange={handleChange}
                     className="input"
-                    placeholder="+57 300 123 4567"
-                    required={formData.perfil === 'trabajador'}
+                    placeholder="3001234567"
+                    required
                   />
                 </div>
 
@@ -279,14 +256,14 @@ const RegisterPage = () => {
                     value={formData.profesion}
                     onChange={handleChange}
                     className="input"
-                    placeholder="Carpintero, Electricista, etc."
-                    required={formData.perfil === 'trabajador'}
+                    placeholder="Desarrollador Web"
+                    required
                   />
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="habilidades" className="form-label">
-                    Habilidades (separadas por coma)
+                    Habilidades (separadas por comas)
                   </label>
                   <textarea
                     id="habilidades"
@@ -294,12 +271,12 @@ const RegisterPage = () => {
                     value={formData.habilidades}
                     onChange={handleChange}
                     className="input"
-                    placeholder="Instalación, Reparación, Mantenimiento, etc."
+                    placeholder="JavaScript, React, Node.js, Python"
                     rows="3"
-                    required={formData.perfil === 'trabajador'}
+                    required
                   />
                 </div>
-              </div>
+              </>
             )}
 
             <div>
