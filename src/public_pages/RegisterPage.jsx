@@ -93,14 +93,14 @@ const RegisterPage = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="documentoIdentidad" className="form-label">
+              <label htmlFor="documento" className="form-label">
                 Documento de Identidad
               </label>
               <input
                 type="text"
-                id="documentoIdentidad"
-                name="documentoIdentidad"
-                value={formData.documentoIdentidad}
+                id="documento"
+                name="documento"
+                value={formData.documento}
                 onChange={handleChange}
                 className="input"
                 placeholder="12345678"
