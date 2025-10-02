@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { registerUser } from '../supabase/supabaseClient';
+import '../styles/RegisterPage.css';
+
 
 const RegisterPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);

@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { loginUser } from '../supabase/supabaseClient';
+import '../styles/LoginPage.css';
+
 
 const LoginPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
