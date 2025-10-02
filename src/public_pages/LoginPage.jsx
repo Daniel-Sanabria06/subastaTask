@@ -118,7 +118,7 @@ const LoginPage = () => {
                 </label>
               </div>
               <div className="forgot-password">
-                <a href="#" className="link-primary">
+                <a href="/reset-password" className="link-primary">
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -137,7 +137,7 @@ const LoginPage = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               ¿No tienes una cuenta?{' '}
-              <Link to="/registro" className="font-medium text-primary hover:text-primary/80">
+              <Link to="/register" className="font-medium text-primary hover:text-primary/80">
                 Regístrate
               </Link>
             </p>

@@ -10,6 +10,8 @@ import LoginPage from './public_pages/LoginPage';
 import RegisterPage from './public_pages/RegisterPage';
 import ClienteDashboard from './private_pages/ClienteDashboard';
 import TrabajadorDashboard from './private_pages/TrabajadorDashboard';
+import ResetPasswordPage from './public_pages/OlvidePassword';
+import AdminPanel from './admin/AdminPanel';
 
 // Estilos
 import './App.css';
@@ -26,6 +28,8 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/cliente/dashboard" element={<ClienteDashboard />} />
             <Route path="/trabajador/dashboard" element={<TrabajadorDashboard />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/admin" element={<AdminPanel />} />
           </Routes>
         </main>
         <Footer />
