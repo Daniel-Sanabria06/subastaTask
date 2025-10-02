@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { loginUser } from '../supabase/supabaseClient';
+import '../styles/LoginPage.css';
+
 
 const LoginPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -33,16 +35,23 @@ const LoginPage = () => {
       // Iniciar sesión con Supabase
       const { success, data, error } = await loginUser(email, password);
       
-      if (success&& data.profile) {
-        // Redirigir al dashboard o página principal
-        // Redirect based on user profile
-    const redirectPath = data.profile.type === 'cliente' 
-    ? '/cliente-dashboard' 
-    : '/trabajador-dashboard';
-  navigate(redirectPath);
-} else {
-  alert('Error al iniciar sesión: ' + error.message);
+      if (success) {
+        console.log('Inicio de sesión exitoso:', data);
         
+        // Redirigir según el tipo de usuario
+        if (data.profile && data.profile.type) {
+          const redirectPath = data.profile.type === 'cliente' 
+            ? '/cliente/dashboard' 
+            : '/trabajador/dashboard';
+          navigate(redirectPath);
+        } else {
+          // Si no hay información del perfil, redirigir a la página principal
+          navigate('/');
+        }
+      } else {
+        // Manejo seguro del error
+        const errorMessage = error && error.message ? error.message : 'Error desconocido al iniciar sesión';
+        alert('Error al iniciar sesión: ' + errorMessage);
       }
     } catch (error) {
       console.error('Error en el inicio de sesión:', error);
@@ -109,7 +118,7 @@ const LoginPage = () => {
                 </label>
               </div>
               <div className="forgot-password">
-                <a href="#" className="link-primary">
+                <a href="/reset-password" className="link-primary">
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -128,7 +137,7 @@ const LoginPage = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               ¿No tienes una cuenta?{' '}
-              <Link to="/registro" className="font-medium text-primary hover:text-primary/80">
+              <Link to="/register" className="font-medium text-primary hover:text-primary/80">
                 Regístrate
               </Link>
             </p>

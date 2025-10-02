@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import './HomePage.css';
+import '../styles/HomePage.css';
 
 const HomePage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -11,17 +11,7 @@ const HomePage = () => {
 
   return (
     <div className={`container ${isLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
-      <header className="flex justify-between items-center mb-8">
-        <h1 className="site-title">SubastaTask</h1>
-        <div className="header-buttons">
-          <Link to="/login" className="btn-primary animate-bounce-in">
-            Iniciar Sesión
-          </Link>
-          <Link to="/registro" className="btn-secondary animate-bounce-in">
-            Registrarse
-          </Link>
-        </div>
-      </header>
+
 
       <main>
         <section className="text-center mb-16">

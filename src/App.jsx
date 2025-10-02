@@ -1,25 +1,38 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-import ClienteDashboard from './pages/ClienteDashboard';
-import TrabajadorDashboard from './pages/TrabajadorDashboard';
+// Componentes
+import Header from './components/Header';
+import Footer from './components/Footer';
 
-// Importación de páginas
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
+// Páginas
+import HomePage from './public_pages/HomePage';
+import LoginPage from './public_pages/LoginPage';
+import RegisterPage from './public_pages/RegisterPage';
+import ClienteDashboard from './private_pages/ClienteDashboard';
+import TrabajadorDashboard from './private_pages/TrabajadorDashboard';
+import ResetPasswordPage from './public_pages/OlvidePassword';
+import AdminPanel from './admin/AdminPanel';
 
+// Estilos
+import './App.css';
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/registro" element={<RegisterPage />} />
-          <Route path="/cliente-dashboard" element={<ClienteDashboard />} />
-          <Route path="/trabajador-dashboard" element={<TrabajadorDashboard />} />
-        </Routes>
+      <div className="app-container">
+        <Header />
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/cliente/dashboard" element={<ClienteDashboard />} />
+            <Route path="/trabajador/dashboard" element={<TrabajadorDashboard />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/admin" element={<AdminPanel />} />
+          </Routes>
+        </main>
+        <Footer />
       </div>
     </Router>
   );
