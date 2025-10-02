@@ -110,6 +110,52 @@
     box-shadow: 0 4px 14px rgba(26, 86, 168, 0.25);
   }
   
+  .btn-copy {
+    width: 100%;
+    padding: 14px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    background: linear-gradient(135deg, var(--accent-primary), #1a70c0);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 14px rgba(26, 86, 168, 0.25);
+  }
+
+   .btn-copy:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(26, 86, 168, 0.35);
+  }
+
+  .btn-delete {
+    width: 100%;
+    padding: 14px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    background: linear-gradient(135deg, var(--accent-primary), #1a70c0);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 14px rgba(26, 86, 168, 0.25);
+  }
+
+   .btn-delete:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(26, 86, 168, 0.35);
+  }
+
+
+
   .btn-primary:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 18px rgba(26, 86, 168, 0.35);

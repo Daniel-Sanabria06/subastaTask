@@ -183,3 +183,53 @@ html {
   color: var(--accent-hover);
   text-decoration: underline;
 }
+
+/* Snackbar estilos */
+.snackbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background-color: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(10, 37, 64, 0.25);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.snackbar.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.snackbar-error {
+  border-color: #e57373;
+  background: linear-gradient(180deg, #fff, #ffecec);
+}
+
+.snackbar-success {
+  border-color: #81c784;
+  background: linear-gradient(180deg, #fff, #ecffef);
+}
+
+.snackbar-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.snackbar-close:hover {
+  color: var(--text-primary);
+}

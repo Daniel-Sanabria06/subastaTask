@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { sendPasswordResetEmail, supabase } from '../supabase/supabaseClient';
+import '../styles/LoginPage.css';
 
 const OlvidePassword = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -14,9 +15,40 @@ const OlvidePassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  // Snackbar para avisos bonitos
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState('');
+  const [snackbarType, setSnackbarType] = useState(''); // 'success' | 'error'
+
   useEffect(() => {
     setIsLoaded(true);
   }, []);
+
+  // Detectar error en el hash (por ejemplo: error_code=otp_expired) y mostrar snackbar
+  useEffect(() => {
+    const rawHash = window.location.hash || '';
+    const hash = rawHash.startsWith('#') ? rawHash.substring(1) : rawHash;
+    const params = new URLSearchParams(hash);
+    const error = params.get('error');
+    const errorCode = params.get('error_code');
+    const errorDesc = params.get('error_description');
+
+    if (error || errorCode || errorDesc) {
+      setIsRecovery(false);
+      setSnackbarMsg('El enlace de recuperación es inválido o ha expirado. Por favor solicita uno nuevo.');
+      setSnackbarType('error');
+      setSnackbarOpen(true);
+      // limpiar el hash para no volver a mostrar el error al recargar
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+
+  // Auto-ocultar el snackbar después de 5s
+  useEffect(() => {
+    if (!snackbarOpen) return;
+    const t = setTimeout(() => setSnackbarOpen(false), 5000);
+    return () => clearTimeout(t);
+  }, [snackbarOpen]);
 
   // Detectar si llegamos con enlace de recuperación y preparar sesión
   useEffect(() => {
@@ -131,117 +163,137 @@ const OlvidePassword = () => {
   };
 
   return (
-    <div className={`auth-container ${isLoaded ? 'loaded' : ''}`}>
-      <div className="auth-card animate-slide-up">
-        <div className="auth-header">
-          <h1 className="auth-title">{isRecovery ? 'Establecer Nueva Contraseña' : 'Recuperar Contraseña'}</h1>
-          <p className="auth-subtitle">
+    <div className={`login-container ${isLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
+      <div className="login-form-wrapper">
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-block">
+            <h1 className="app-title">SubastaTask</h1>
+          </Link>
+          <p className="form-subtitle">
             {isRecovery
               ? 'Ingresa tu nueva contraseña para tu cuenta'
               : 'Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña'}
           </p>
         </div>
 
-        {!isRecovery ? (
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">
-                Correo Electrónico
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={email}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="tu@correo.com"
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            {message && (
-              <div className={`message ${messageType === 'success' ? 'message-success' : 'message-error'}`}>
-                {message}
+        <div className="card animate-slide-in">
+          {!isRecovery ? (
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label htmlFor="email" className="form-label">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={email}
+                  onChange={handleChange}
+                  className="input"
+                  placeholder="tu@correo.com"
+                  required
+                  disabled={isLoading}
+                />
               </div>
-            )}
 
-            <div>
-              <button
-                type="submit"
-                className="btn-primary btn-full animate-bounce-in"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
-              </button>
-            </div>
+              {message && (
+                <div className="mt-2" style={{ color: messageType === 'success' ? 'var(--accent-primary)' : '#d32f2f' }}>
+                  {message}
+                </div>
+              )}
 
-            <div className="auth-links">
-              <Link to="/login" className="link-primary">
-                ← Volver al inicio de sesión
-              </Link>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleResetSubmit} className="auth-form">
-            <div className="form-group">
-              <label htmlFor="password" className="form-label">
-                Nueva Contraseña
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="form-input"
-                placeholder="Tu nueva contraseña"
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">
-                Confirmar Nueva Contraseña
-              </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="form-input"
-                placeholder="Confirma tu nueva contraseña"
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            {message && (
-              <div className={`message ${messageType === 'success' ? 'message-success' : 'message-error'}`}>
-                {message}
+              <div>
+                <button
+                  type="submit"
+                  className="btn-primary btn-full animate-bounce-in"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
+                </button>
               </div>
-            )}
 
-            <div>
-              <button
-                type="submit"
-                className="btn-primary btn-full animate-bounce-in"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Actualizando...' : 'Guardar Nueva Contraseña'}
-              </button>
-            </div>
+              <div className="mt-6 text-center">
+                <Link to="/login" className="link-primary">
+                  ← Volver al inicio de sesión
+                </Link>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleResetSubmit}>
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">
+                  Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input"
+                  placeholder="Tu nueva contraseña"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
 
-            <div className="auth-links">
-              <Link to="/login" className="link-primary">
-                ← Volver al inicio de sesión
-              </Link>
-            </div>
-          </form>
-        )}
+              <div className="form-group">
+                <label htmlFor="confirmPassword" className="form-label">
+                  Confirmar Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="input"
+                  placeholder="Confirma tu nueva contraseña"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              {message && (
+                <div className="mt-2" style={{ color: messageType === 'success' ? 'var(--accent-primary)' : '#d32f2f' }}>
+                  {message}
+                </div>
+              )}
+
+              <div>
+                <button
+                  type="submit"
+                  className="btn-primary btn-full animate-bounce-in"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Actualizando...' : 'Guardar Nueva Contraseña'}
+                </button>
+              </div>
+
+              <div className="mt-6 text-center">
+                <Link to="/login" className="link-primary">
+                  ← Volver al inicio de sesión
+                </Link>
+              </div>
+            </form>
+          )}
+        </div>
+
+        <div className="mt-8 text-center">
+          <Link to="/" className="text-sm text-gray-600 hover:text-gray-900">
+            &larr; Volver a la página principal
+          </Link>
+        </div>
+      </div>
+
+      {/* Snackbar */}
+      <div
+        className={`snackbar ${snackbarType === 'error' ? 'snackbar-error' : 'snackbar-success'} ${snackbarOpen ? 'show' : ''}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span>{snackbarMsg}</span>
+        <button className="snackbar-close" onClick={() => setSnackbarOpen(false)} aria-label="Cerrar aviso">×</button>
       </div>
     </div>
   );
