@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // Componentes
 import Header from './components/Header';
 import Footer from './components/Footer';
+import SnowEffect from './components/SnowEffect'; // 👈 Importa aquí
 
 // Páginas
 import HomePage from './public_pages/HomePage';
@@ -21,6 +22,7 @@ function App() {
     <Router>
       <div className="app-container">
         <Header />
+        <SnowEffect /> 
         <main className="main-content">
           <Routes>
             <Route path="/" element={<HomePage />} />

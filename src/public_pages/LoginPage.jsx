@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { loginUser } from '../supabase/supabaseClient';
 import '../styles/LoginPage.css';
+import logo from '../assets/logo.png';
 
 
 const LoginPage = () => {
@@ -27,21 +28,21 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { email, password } = formData; 
+    const { email, password } = formData;
     try {
       // Mostrar estado de carga
       setIsLoaded(false);
-      
+
       // Iniciar sesión con Supabase
       const { success, data, error } = await loginUser(email, password);
-      
+
       if (success) {
         console.log('Inicio de sesión exitoso:', data);
-        
+
         // Redirigir según el tipo de usuario
         if (data.profile && data.profile.type) {
-          const redirectPath = data.profile.type === 'cliente' 
-            ? '/cliente/dashboard' 
+          const redirectPath = data.profile.type === 'cliente'
+            ? '/cliente/dashboard'
             : '/trabajador/dashboard';
           navigate(redirectPath);
         } else {
@@ -65,6 +66,11 @@ const LoginPage = () => {
     <div className={`login-container ${isLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
       <div className="login-form-wrapper">
         <div className="text-center mb-8">
+          <img
+            src={logo}
+            alt="SubasTask Logo"
+            className="logo-auth"
+          />
           <Link to="/" className="inline-block">
             <h1 className="app-title">SubastaTask</h1>
           </Link>
