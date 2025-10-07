@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import '../styles/HomePage.css';
+import logo from '../assets/logo.png';
 
 const HomePage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -15,6 +16,12 @@ const HomePage = () => {
 
       <main>
         <section className="text-center mb-16">
+          <img
+            src={logo}
+            alt="SubasTask Logo"
+            className="logo-home"
+          />
+
           <h2 className="section-title animate-slide-in">Bienvenido a SubastaTask</h2>
           <p className="section-description animate-slide-in">
             La plataforma donde usuarios, clientes y trabajadores pueden conectarse a través de subastas de servicios y tareas.

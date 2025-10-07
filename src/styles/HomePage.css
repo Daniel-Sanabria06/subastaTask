@@ -159,6 +159,19 @@
   text-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
 }
 
+/* Listas dentro de tarjetas (páginas públicas) */
+.card-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.card-list li {
+  margin: 0.35rem 0;
+}
+
+.text-center { text-align: center; }
+
 /* Animaciones */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -232,3 +245,12 @@
     padding: 1.8rem;
   }
 }
+
+.logo-home {
+  height: 80px;
+  margin-bottom: 24px;
+  opacity: 0.95;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+}
+
+
