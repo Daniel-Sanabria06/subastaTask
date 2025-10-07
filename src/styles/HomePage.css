@@ -232,3 +232,12 @@
     padding: 1.8rem;
   }
 }
+
+.logo-home {
+  height: 80px;
+  margin-bottom: 24px;
+  opacity: 0.95;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+}
+
+
