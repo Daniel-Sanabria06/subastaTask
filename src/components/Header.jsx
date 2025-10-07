@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCurrentUser, logoutUser } from '../supabase/supabaseClient';
+import { getCurrentUser, logoutUser, runSecurityChecks } from '../supabase/supabaseClient';
 import '../styles/Header.css';
 import logo from '../assets/logo.png';
 
@@ -36,6 +36,7 @@ const Header = () => {
         const { success, data } = await getCurrentUser();
         if (success) {
           setUser(data);
+          try { await runSecurityChecks(); } catch {}
         } else {
           setUser(null);
         }
@@ -72,7 +73,7 @@ const Header = () => {
         <div className="logo-container">
           <Link to="/" className="logo-link">
             <img src={logo} alt="SubasTask Logo" className="logo" />
-            <span className="logo-text">SubasTask</span>
+            <span className="logo-text">SubastaTask</span>
           </Link>
         </div>
 
@@ -119,13 +120,23 @@ const Header = () => {
               <div className="loading-indicator">Cargando...</div>
             ) : user ? (
               <>
-                <Link 
-                  to={user.profile.type === 'cliente' ? '/cliente/dashboard' : '/trabajador/dashboard'} 
-                  className="btn btn-dashboard"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Mi Perfil
-                </Link>
+                {user.profile.type === 'administrador' ? (
+                  <Link 
+                    to={'/admin'} 
+                    className="btn btn-dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Panel Admin
+                  </Link>
+                ) : (
+                  <Link 
+                    to={user.profile.type === 'cliente' ? '/cliente/dashboard' : '/trabajador/dashboard'} 
+                    className="btn btn-dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Mi Perfil
+                  </Link>
+                )}
                 <button className="btn btn-logout" onClick={handleLogout}>
                   Cerrar Sesión
                 </button>

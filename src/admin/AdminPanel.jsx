@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { listAllUsers, deleteUserById } from '../supabase/supabaseClient';
+import { listAllUsers, deleteUserById, getCurrentUser } from '../supabase/supabaseClient';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase/supabaseClient';
 import '../styles/LoginPage.css';
 
-// Admin gate (simple). Recomendación: mover a variables de entorno.
-const ADMIN_EMAIL = 'admin@subastask.com';
-const ADMIN_PASSCODE = 'admin2025';
+// Autorización basada en rol via getCurrentUser (administrador)
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
@@ -16,7 +14,6 @@ const AdminPanel = () => {
   // Autorización
   const [authorized, setAuthorized] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [passcode, setPasscode] = useState('');
   const [passError, setPassError] = useState('');
   // Ordenamiento (por creado o último acceso)
   const [sortKey, setSortKey] = useState('created_at'); // 'created_at' | 'last_sign_in_at'
@@ -80,14 +77,8 @@ const AdminPanel = () => {
     (async () => {
       try {
         setCheckingAuth(true);
-        const { data, error } = await supabase.auth.getUser();
-        if (error) {
-          // No hay sesión o error -> requiere gate
-          setAuthorized(false);
-        } else {
-          const email = data?.user?.email || '';
-          setAuthorized(email === ADMIN_EMAIL);
-        }
+        const { success, data } = await getCurrentUser();
+        setAuthorized(success && data?.profile?.type === 'administrador');
       } catch (e) {
         setAuthorized(false);
       } finally {
@@ -123,16 +114,7 @@ const AdminPanel = () => {
 
   const handlePasscodeSubmit = (e) => {
     e.preventDefault();
-    if (!passcode) {
-      setPassError('Ingresa el passcode de administrador');
-      return;
-    }
-    if (passcode === ADMIN_PASSCODE) {
-      setAuthorized(true);
-      setPassError('');
-    } else {
-      setPassError('Passcode incorrecto');
-    }
+    setPassError('Debes iniciar sesión con una cuenta de administrador');
   };
 
   // Copiar UID
@@ -208,7 +190,7 @@ const AdminPanel = () => {
             <Link to="/" className="inline-block">
               <h1 className="app-title">Acceso Administrador</h1>
             </Link>
-            <p className="form-subtitle">Esta sección está protegida. Valida acceso.</p>
+            <p className="form-subtitle">Acceso exclusivo para administradores.</p>
           </div>
 
           <div className="card" style={{ padding: '1rem' }}>
@@ -222,9 +204,8 @@ const AdminPanel = () => {
                     id="adminPasscode"
                     type="password"
                     className="input"
-                    placeholder="Ingresa el passcode"
-                    value={passcode}
-                    onChange={(e) => setPasscode(e.target.value)}
+                    placeholder="Passcode no requerido. Inicia sesión como admin."
+                    disabled
                   />
                 </div>
                 {passError && (

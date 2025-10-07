@@ -23,6 +23,14 @@ const options = {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, options);
 
+// Utilidad para detectar administradores mediante lista de correos en .env
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
+
+const isAdminEmail = (email) => ADMIN_EMAILS.includes((email || '').toLowerCase());
+
 // Función para registrar un usuario
 export const registerUser = async (formData) => {
   try {
@@ -157,8 +165,22 @@ export const getCurrentUser = async () => {
       return { success: false, error: authError || new Error('No hay usuario autenticado') };
     }
 
+    // Detectar administrador por correo
+    if (isAdminEmail(user.email)) {
+      return {
+        success: true,
+        data: {
+          user,
+          profile: {
+            type: 'administrador',
+            data: { email: user.email }
+          }
+        }
+      };
+    }
+
     // Buscar en la tabla clientes
-    const { data: clienteData, error: clienteError } = await supabase
+    const { data: clienteData } = await supabase
       .from('clientes')
       .select('*')
       .eq('id', user.id)
@@ -178,7 +200,7 @@ export const getCurrentUser = async () => {
     }
 
     // Si no es cliente, buscar en trabajadores
-    const { data: trabajadorData, error: trabajadorError } = await supabase
+    const { data: trabajadorData } = await supabase
       .from('trabajadores')
       .select('*')
       .eq('id', user.id)
@@ -268,6 +290,47 @@ export const logoutUser = async () => {
     return { success: true };
   } catch (error) {
     console.error('Error en logoutUser:', error);
+    return { success: false, error };
+  }
+};
+
+// Chequeos mínimos de seguridad/RLS para clientes y trabajadores
+export const runSecurityChecks = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: true, data: 'Sin usuario autenticado' };
+
+    // Administradores: omitir chequeos de RLS de perfiles
+    if (isAdminEmail(user.email)) {
+      return { success: true, data: 'Usuario administrador: chequeos omitidos' };
+    }
+
+    const { data: clienteRow } = await supabase
+      .from('clientes')
+      .select('id')
+      .eq('id', user.id)
+      .limit(1);
+    const { data: trabajadorRow } = await supabase
+      .from('trabajadores')
+      .select('id')
+      .eq('id', user.id)
+      .limit(1);
+
+    const isCliente = Array.isArray(clienteRow) && clienteRow.length > 0;
+    const isTrabajador = Array.isArray(trabajadorRow) && trabajadorRow.length > 0;
+
+    if (isCliente && isTrabajador) {
+      console.warn('Anomalía: el usuario aparece en ambas tablas.');
+      return { success: false, error: new Error('RLS inconsistente: usuario en ambas tablas') };
+    }
+    if (!isCliente && !isTrabajador) {
+      console.warn('Anomalía: el usuario no aparece en ninguna tabla.');
+      return { success: false, error: new Error('Perfil no encontrado con RLS activo') };
+    }
+
+    return { success: true, data: isCliente ? 'cliente' : 'trabajador' };
+  } catch (error) {
+    console.error('Error en runSecurityChecks:', error);
     return { success: false, error };
   }
 };
