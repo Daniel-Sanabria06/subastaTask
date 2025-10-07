@@ -11,6 +11,24 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // --- NUEVO: Estado y lógica para el tema ---
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    // Cargar tema guardado en localStorage
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
+  // --- FIN NUEVO ---
+
   useEffect(() => {
     const checkUser = async () => {
       try {
@@ -30,7 +48,7 @@ const Header = () => {
     };
 
     checkUser();
-  }, [location.pathname]); // Re-ejecutar cuando cambie la ruta
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -57,6 +75,16 @@ const Header = () => {
             <span className="logo-text">SubasTask</span>
           </Link>
         </div>
+
+        {/* --- NUEVO: Botón de cambio de tema --- */}
+        <button
+          onClick={toggleTheme}
+          className="theme-toggle-btn"
+          aria-label={`Cambiar a tema ${theme === 'light' ? 'oscuro' : 'claro'}`}
+        >
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
+        {/* --- FIN NUEVO --- */}
 
         <button className="menu-toggle" onClick={toggleMenu}>
           <span className="menu-icon"></span>

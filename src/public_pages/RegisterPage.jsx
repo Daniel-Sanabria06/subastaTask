@@ -1,6 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { registerUser } from '../supabase/supabaseClient';
+import '../styles/RegisterPage.css';
+import logo from '../assets/logo.png';
+
 
 const RegisterPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -25,14 +28,18 @@ const RegisterPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+
+    // Solo para el campo "documento": permitir solo números
+    if (name === 'documento') {
+      const soloNumeros = value.replace(/\D/g, ''); // Elimina todo lo que no sea dígito
+      setFormData(prev => ({ ...prev, [name]: soloNumeros }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const navigate = useNavigate();
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Validar que las contraseñas coincidan
@@ -40,14 +47,14 @@ const RegisterPage = () => {
       alert('Las contraseñas no coinciden');
       return;
     }
-    
+
     try {
       // Mostrar estado de carga
       setIsLoaded(false);
-      
+
       // Registrar usuario con Supabase
       const { success, error } = await registerUser(formData);
-      
+
       if (success) {
         alert('Usuario registrado correctamente');
         navigate('/login');
@@ -66,6 +73,11 @@ const RegisterPage = () => {
     <div className={`register-container ${isLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
       <div className="register-form-wrapper">
         <div className="text-center mb-8">
+          <img
+            src={logo}
+            alt="SubasTask Logo"
+            className="logo-auth"
+          />
           <Link to="/" className="inline-block">
             <h1 className="app-title">SubastaTask</h1>
           </Link>
@@ -91,14 +103,14 @@ const RegisterPage = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="documentoIdentidad" className="form-label">
+              <label htmlFor="documento" className="form-label">
                 Documento de Identidad
               </label>
               <input
                 type="text"
-                id="documentoIdentidad"
-                name="documentoIdentidad"
-                value={formData.documentoIdentidad}
+                id="documento"
+                name="documento"
+                value={formData.documento}
                 onChange={handleChange}
                 className="input"
                 placeholder="12345678"
