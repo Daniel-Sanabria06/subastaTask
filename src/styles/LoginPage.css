@@ -217,3 +217,10 @@
       font-size: 1.9rem;
     }
   }
+
+  .logo-auth {
+    height: 90px;
+    margin-bottom: 16px;
+    opacity: 0.9;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  }

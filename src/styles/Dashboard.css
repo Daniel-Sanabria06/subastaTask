@@ -468,3 +468,11 @@
     justify-content: center;
   }
 }
+
+
+.logo-mini img {
+  height: 100px;
+  opacity: 0.8;
+  margin-bottom: 12px;
+}
+

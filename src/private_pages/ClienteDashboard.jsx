@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getCurrentUser, updateUserProfile } from '../supabase/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Dashboard.css';
+import logo from '../assets/logo.png';
 
 const ClienteDashboard = () => {
   const [userData, setUserData] = useState(null);
@@ -50,7 +51,11 @@ const ClienteDashboard = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'documento') {
+      setFormData(prev => ({ ...prev, [name]: value.replace(/\D/g, '') }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -98,21 +103,25 @@ const ClienteDashboard = () => {
     <div className="dashboard-container animate-fade-in">
       <nav className="dashboard-nav">
         <div className="user-info">
+          <div className="logo-mini">
+            <img src={logo} alt="SubasTask" />
+          </div>
+
           <h2>Bienvenido, {userData.profile.data.nombre_completo || 'Usuario'}</h2>
           <p>{userData.user.email}</p>
         </div>
         <ul className="nav-tabs">
           <li>
-            <button 
-              className={activeTab === 'proyectos' ? 'active' : ''} 
+            <button
+              className={activeTab === 'proyectos' ? 'active' : ''}
               onClick={() => setActiveTab('proyectos')}
             >
               Mis Ofertas
             </button>
           </li>
           <li>
-            <button 
-              className={activeTab === 'perfil' ? 'active' : ''} 
+            <button
+              className={activeTab === 'perfil' ? 'active' : ''}
               onClick={() => setActiveTab('perfil')}
             >
               Mi Perfil
@@ -137,8 +146,8 @@ const ClienteDashboard = () => {
               <div className="section-header">
                 <h2 className="section-title">Información Personal</h2>
                 {!editMode ? (
-                  <button 
-                    className="btn btn-primary" 
+                  <button
+                    className="btn btn-primary"
                     onClick={() => setEditMode(true)}
                   >
                     Editar Perfil
@@ -229,16 +238,16 @@ const ClienteDashboard = () => {
                   </div>
 
                   <div className="form-actions">
-                    <button 
-                      type="submit" 
-                      className="btn btn-success" 
+                    <button
+                      type="submit"
+                      className="btn btn-success"
                       disabled={saving}
                     >
                       {saving ? 'Guardando...' : 'Guardar Cambios'}
                     </button>
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary" 
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
                       onClick={() => {
                         setEditMode(false);
                         setMessage({ text: '', type: '' });
