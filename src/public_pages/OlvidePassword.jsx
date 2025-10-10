@@ -1,8 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { sendPasswordResetEmail, supabase } from '../supabase/supabaseClient';
+import { enviarCorreoRecuperacion, supabase } from '../supabase';
 import '../styles/LoginPage.css';
-import logo from '../assets/logo.png';
 
 const OlvidePassword = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -80,7 +79,7 @@ const OlvidePassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     if (!email) {
       setMessage('Por favor ingresa tu correo electrónico');
       setMessageType('error');
@@ -91,8 +90,8 @@ const OlvidePassword = () => {
     setMessage('');
 
     try {
-      const { success, error } = await sendPasswordResetEmail(email);
-
+      const { success, error } = await enviarCorreoRecuperacion(email);
+      
       if (success) {
         setMessage('Se ha enviado un enlace de recuperación a tu correo electrónico. Revisa tu bandeja de entrada.');
         setMessageType('success');
@@ -144,7 +143,9 @@ const OlvidePassword = () => {
         setConfirmPassword('');
         try {
           await supabase.auth.signOut();
-        } catch { }
+        } catch (err) {
+          console.error('Error al cerrar sesión:', err);
+        }
         setTimeout(() => navigate('/login'), 1500);
       }
     } catch (err) {
@@ -167,11 +168,6 @@ const OlvidePassword = () => {
     <div className={`login-container ${isLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
       <div className="login-form-wrapper">
         <div className="text-center mb-8">
-          <img
-            src={logo}
-            alt="SubasTask Logo"
-            className="logo-auth"
-          />
           <Link to="/" className="inline-block">
             <h1 className="app-title">SubastaTask</h1>
           </Link>

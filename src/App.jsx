@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // Componentes
 import Header from './components/Header';
 import Footer from './components/Footer';
-import SnowEffect from './components/SnowEffect'; // 👈 Importa aquí
+import SnowEffect from './components/SnowEffect';
 
 // Páginas
 import HomePage from './public_pages/HomePage';
@@ -20,29 +20,70 @@ import Contacto from './public_pages/Contacto';
 // Estilos
 import './App.css';
 import { useEffect, useState } from 'react';
-import { getCurrentUser } from './supabase/supabaseClient';
+import { obtenerUsuarioActual } from './supabase/autenticacion';
 
 function App() {
   // Guardas por rol dentro de App sin crear archivos adicionales
   const RoleRoute = ({ children, allow }) => {
     const [loading, setLoading] = useState(true);
     const [allowed, setAllowed] = useState(false);
+    const [debugInfo, setDebugInfo] = useState('');
 
     useEffect(() => {
       const check = async () => {
-        const { success, data } = await getCurrentUser();
-        if (success && data?.profile?.type && allow.includes(data.profile.type)) {
-          setAllowed(true);
+        const { success, data } = await obtenerUsuarioActual();
+        
+        console.log('🔍 DEBUG RoleRoute - Datos recibidos:', { success, data });
+        
+        if (success && data) {
+          // Verificar si tiene profile.type (para admin, cliente, trabajador)
+          const userType = data.profile?.type;
+          console.log('🔍 DEBUG - Tipo de usuario:', userType);
+          console.log('🔍 DEBUG - Roles permitidos:', "administrador");
+          
+            if (userType && allow.includes(userType)) { 
+          console.log('✅ Usuario autorizado'); 
+          setAllowed(true); 
+          setDebugInfo(`Autorizado: ${userType}`); 
+        } else { 
+          console.log('❌ Usuario NO autorizado'); 
+          console.log('🔍 Debug detallado:');
+          console.log('userType:', userType, 'tipo:', typeof userType);
+          console.log('allow:', allow, 'tipo:', typeof allow);
+          console.log('allow.includes(userType):', allow.includes(userType));
+          setAllowed(false); 
+          setDebugInfo(`No autorizado. Tipo: ${userType}, Permitidos: ${allow.join(', ')}`); 
+        }
         } else {
+          console.log('❌ No hay usuario autenticado');
           setAllowed(false);
+          setDebugInfo('No autenticado');
         }
         setLoading(false);
       };
       check();
-    }, []);
+    }, [allow]);
 
-    if (loading) return <div className="loading-container">Cargando...</div>;
-    if (!allowed) return <div className="loading-container">No autorizado</div>;
+    if (loading) return (
+      <div className="loading-container">
+        <p>Cargando...</p>
+        <p style={{ fontSize: '12px', color: '#666' }}>{debugInfo}</p>
+      </div>
+    );
+    
+    if (!allowed) return (
+      <div className="loading-container">
+        <p>No autorizado</p>
+        <p style={{ fontSize: '12px', color: '#666' }}>{debugInfo}</p>
+        <button 
+          onClick={() => window.location.href = '/login'}
+          style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}
+        >
+          Ir a Login
+        </button>
+      </div>
+    );
+    
     return children;
   };
 
