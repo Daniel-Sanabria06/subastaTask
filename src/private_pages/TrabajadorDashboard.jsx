@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { obtenerPerfilTrabajador, crearOActualizarPerfilTrabajador } from '../supabase/perfiles/trabajador';
+import { obtenerPerfilTrabajador } from '../supabase/perfiles/trabajador';
+import { actualizarPerfilUsuario } from '../supabase/autenticacion';
+import { supabase } from '../supabase/cliente';
 import { useNavigate } from 'react-router-dom';
 import TrabajadorProfileForm from '../components/TrabajadorProfileForm';
 import '../styles/Dashboard.css';
@@ -9,6 +11,7 @@ const TrabajadorDashboard = () => {
   const [activeTab, setActiveTab] = useState('proyectos');
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [formData, setFormData] = useState({
     // Datos básicos del trabajador
@@ -34,6 +37,71 @@ const TrabajadorDashboard = () => {
   const generateUserAvatar = (userId) => {
     const seed = userId ? userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
     return `https://picsum.photos/seed/${seed}/100/100`;
+  };
+
+  // Obtener avatar desde metadata si existe; en caso contrario, usar uno generado
+  const getAvatarUrl = (user) => {
+    const meta = user?.user_metadata || {};
+    if (meta.avatar_url) {
+      const url = meta.avatar_url;
+      const ver = meta.avatar_version;
+      if (ver) {
+        const sep = url.includes('?') ? '&' : '?';
+        return `${url}${sep}v=${ver}`;
+      }
+      return url;
+    }
+    const seed = user?.id ? user.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
+    return `https://picsum.photos/seed/${seed}/100/100`;
+  };
+
+  // Subir una nueva imagen de avatar al bucket 'avatars' y guardar URL pública en metadata
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !userData?.user?.id) return;
+    try {
+      setUploadingAvatar(true);
+      setMessage({ text: 'Subiendo avatar...', type: 'success' });
+      const userId = userData.user.id;
+      const folder = `usuarios/${userId}`;
+      const fixedKey = `${folder}/avatar`;
+      // Eliminar imágenes anteriores del usuario para evitar acumulación
+      const { data: existingList } = await supabase.storage.from('fotosperfil').list(folder, { limit: 100 });
+      if (Array.isArray(existingList) && existingList.length > 0) {
+        const keysToRemove = existingList.map(item => `${folder}/${item.name}`);
+        await supabase.storage.from('fotosperfil').remove(keysToRemove);
+      }
+      // Subir nueva imagen a una ruta fija por usuario
+      const { error: uploadError } = await supabase.storage
+        .from('fotosperfil')
+        .upload(fixedKey, file, { upsert: true, contentType: file.type });
+      if (uploadError) {
+        setMessage({ text: `Error al subir imagen: ${uploadError.message}`, type: 'error' });
+        return;
+      }
+      const { data: publicData } = await supabase.storage.from('fotosperfil').getPublicUrl(fixedKey);
+      const publicUrl = publicData?.publicUrl;
+      if (!publicUrl) {
+        setMessage({ text: 'No se pudo obtener URL pública del avatar', type: 'error' });
+        return;
+      }
+      const { error: metaError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl, avatar_version: Date.now() } });
+      if (metaError) {
+        setMessage({ text: `Error al actualizar avatar: ${metaError.message}`, type: 'error' });
+        return;
+      }
+      const { success: refreshSuccess, data: refreshData } = await obtenerPerfilTrabajador();
+      if (refreshSuccess) {
+        setUserData(refreshData);
+        setMessage({ text: 'Avatar actualizado', type: 'success' });
+        setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      }
+    } catch (err) {
+      setMessage({ text: 'Error inesperado al actualizar avatar', type: 'error' });
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
+    }
   };
 
   useEffect(() => {
@@ -106,29 +174,22 @@ const handleChange = (e) => {
         return;
       }
 
-      // Preparar datos para enviar
+      // Preparar SOLO datos básicos para actualizar en tabla trabajadores
       const datosParaEnviar = {
-        // Datos básicos del perfil
         nombre_completo: formData.nombre_completo,
-        telefono: formData.telefono,
-        direccion: formData.direccion,
-        fecha_nacimiento: formData.fecha_nacimiento,
-        genero: formData.genero,
+        documento: formData.documento,
+        email: formData.email,
         edad: parseInt(formData.edad),
-        habilidades: formData.habilidades.split(',').map(h => h.trim()).filter(h => h),
-        // Datos específicos del perfil profesional
-        nombre_perfil: formData.nombre_perfil,
-        servicios_ofrecidos: formData.servicios_ofrecidos.split(',').map(s => s.trim()).filter(s => s),
-        experiencia_laboral: formData.experiencia_laboral,
-        descripcion_personal: formData.descripcion_personal,
-        tarifa_por_hora: parseFloat(formData.tarifa_por_hora) || 0,
-        disponibilidad: formData.disponibilidad
+        ciudad: formData.ciudad,
+        profesion: formData.profesion,
+        telefono: formData.telefono,
+        habilidades: formData.habilidades.split(',').map(h => h.trim()).filter(h => h)
       };
 
-      const { success, error} = await crearOActualizarPerfilTrabajador(datosParaEnviar);
+      const { success, error } = await actualizarPerfilUsuario(userData.user.id, datosParaEnviar, 'trabajador');
 
       if (success) {
-        setMessage({ text: 'Perfil guardado correctamente', type: 'success' });
+        setMessage({ text: 'Información personal guardada correctamente', type: 'success' });
         setEditMode(false);
         // Actualizar datos del usuario
         const { success: refreshSuccess, data: refreshData } = await obtenerPerfilTrabajador();
@@ -136,11 +197,11 @@ const handleChange = (e) => {
           setUserData(refreshData);
         }
       } else {
-        setMessage({ text: `Error al guardar el perfil: ${error?.message || 'Desconocido'}`, type: 'error' });
+        setMessage({ text: `Error al guardar información personal: ${error?.message || 'Desconocido'}`, type: 'error' });
       }
     } catch (error) {
-      console.error('Error al guardar perfil:', error);
-      setMessage({ text: 'Error al guardar el perfil', type: 'error' });
+      console.error('Error al guardar información personal:', error);
+      setMessage({ text: 'Error al guardar información personal', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -155,13 +216,17 @@ const handleChange = (e) => {
           <h2>Bienvenido, {userData.profile.data.nombre_completo || 'Usuario'}</h2>
           <div className="user-avatar">
             <img 
-              src={generateUserAvatar(userData.user.id)} 
+              src={getAvatarUrl(userData.user)} 
               alt="Avatar del usuario" 
               className="avatar-image"
               onError={(e) => {
                 e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=Usuario';
               }}
             />
+            <label className="btn btn-secondary" style={{ cursor: uploadingAvatar ? 'not-allowed' : 'pointer', marginLeft: '12px' }}>
+              {uploadingAvatar ? 'Subiendo...' : 'Cambiar foto'}
+              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} disabled={uploadingAvatar} />
+            </label>
           </div>
           {/* Mostrar si tiene perfil específico creado */}
           <div className="profile-status">
@@ -201,9 +266,9 @@ const handleChange = (e) => {
       </nav>
 
       <main className="dashboard-content">
-        {/* Mostrar mensaje si existe */}
+        {/* Snackbar global para estados y resultados */}
         {message.text && (
-          <div className={`message ${message.type}`}>
+          <div className={`snackbar snackbar-${message.type} show`}>
             {message.text}
           </div>
         )}
@@ -225,7 +290,7 @@ const handleChange = (e) => {
             <div className="profile-header">
               <h3>Información Personal</h3>
               <button 
-                className="edit-btn"
+                className="btn btn-primary"
                 onClick={() => setEditMode(!editMode)}
               >
                 {editMode ? 'Cancelar' : 'Editar'}
@@ -233,9 +298,9 @@ const handleChange = (e) => {
             </div>
 
             <form onSubmit={handleSubmit} className="profile-form">
-              <div className="form-grid">
+              <div className="form-row">
                 <div className="form-group">
-                  <label>Nombre Completo:</label>
+                  <label className="form-label">Nombre Completo:</label>
                   <input
                     type="text"
                     name="nombre_completo"
@@ -243,11 +308,12 @@ const handleChange = (e) => {
                     onChange={handleChange}
                     disabled={!editMode}
                     required
+                    className="form-control"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Documento:</label>
+                  <label className="form-label">Documento:</label>
                   <input
                     type="text"
                     name="documento"
@@ -255,21 +321,23 @@ const handleChange = (e) => {
                     onChange={handleChange}
                     disabled={!editMode}
                     required
+                    className="form-control"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Email:</label>
+                  <label className="form-label">Email:</label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     disabled={true}
+                    className="form-control"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Edad:</label>
+                  <label className="form-label">Edad:</label>
                   <input
                     type="number"
                     name="edad"
@@ -279,11 +347,12 @@ const handleChange = (e) => {
                     min="18"
                     max="100"
                     required
+                    className="form-control"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Ciudad:</label>
+                  <label className="form-label">Ciudad:</label>
                   <input
                     type="text"
                     name="ciudad"
@@ -291,11 +360,12 @@ const handleChange = (e) => {
                     onChange={handleChange}
                     disabled={!editMode}
                     required
+                    className="form-control"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Profesión:</label>
+                  <label className="form-label">Profesión:</label>
                   <input
                     type="text"
                     name="profesion"
@@ -303,11 +373,12 @@ const handleChange = (e) => {
                     onChange={handleChange}
                     disabled={!editMode}
                     required
+                    className="form-control"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Teléfono:</label>
+                  <label className="form-label">Teléfono:</label>
                   <input
                     type="tel"
                     name="telefono"
@@ -315,11 +386,12 @@ const handleChange = (e) => {
                     onChange={handleChange}
                     disabled={!editMode}
                     required
+                    className="form-control"
                   />
                 </div>
 
                 <div className="form-group full-width">
-                  <label>Habilidades (separadas por comas):</label>
+                  <label className="form-label">Habilidades (separadas por comas):</label>
                   <textarea
                     name="habilidades"
                     value={formData.habilidades}
@@ -327,12 +399,13 @@ const handleChange = (e) => {
                     disabled={!editMode}
                     rows="3"
                     placeholder="Ej: JavaScript, React, Node.js, Python"
+                    className="form-control"
                   />
                 </div>
               </div>
 
               {editMode && (
-                <button type="submit" className="save-btn" disabled={saving}>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               )}

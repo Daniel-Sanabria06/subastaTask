@@ -171,6 +171,29 @@
   border: 1px solid var(--border-color);
 }
 
+/* === Snackbar de estado === */
+.snackbar {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(10, 37, 64, 0.2);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  font-weight: 600;
+}
+.snackbar.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.snackbar-success { background-color: #28a745; }
+.snackbar-error { background-color: #dc3545; }
+.snackbar-info { background-color: #17a2b8; }
+
 .tab-content {
   animation: slideInUp 0.3s ease-out;
 }

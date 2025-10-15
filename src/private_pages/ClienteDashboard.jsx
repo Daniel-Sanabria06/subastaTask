@@ -9,6 +9,7 @@ import {
   obtenerUsuarioActual, 
   actualizarPerfilUsuario 
 } from '../supabase/autenticacion';
+import { supabase } from '../supabase/cliente';
 import { 
   obtenerPerfilCliente, 
   //crearOActualizarPerfilCliente 
@@ -33,6 +34,7 @@ const ClienteDashboard = () => {
   
   // Estado para indicar cuando se está guardando
   const [guardando, setGuardando] = useState(false);
+  const [subiendoAvatar, setSubiendoAvatar] = useState(false);
   
   // Estado para mensajes de feedback al usuario
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
@@ -57,9 +59,72 @@ const ClienteDashboard = () => {
    * Usa el ID del usuario para crear una imagen única pero consistente
    */
   const generarAvatarUsuario = (userId) => {
-    // Crear un número único basado en los caracteres del ID
     const semilla = userId ? userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
     return `https://picsum.photos/seed/${semilla}/100/100`;
+  };
+
+  const obtenerAvatarUrl = (user) => {
+    const meta = user?.user_metadata || {};
+    if (meta.avatar_url) {
+      const url = meta.avatar_url;
+      const ver = meta.avatar_version;
+      if (ver) {
+        const sep = url.includes('?') ? '&' : '?';
+        return `${url}${sep}v=${ver}`;
+      }
+      return url;
+    }
+    return generarAvatarUsuario(user?.id);
+  };
+
+  const manejarCambioAvatar = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !datosUsuario?.user?.id) return;
+    try {
+      setSubiendoAvatar(true);
+      setMensaje({ texto: 'Subiendo avatar...', tipo: 'success' });
+      const userId = datosUsuario.user.id;
+      const folder = `usuarios/${userId}`;
+      const fixedKey = `${folder}/avatar`;
+      // Eliminar imágenes anteriores del usuario
+      const { data: existingList } = await supabase.storage.from('fotosperfil').list(folder, { limit: 100 });
+      if (Array.isArray(existingList) && existingList.length > 0) {
+        const keysToRemove = existingList.map(item => `${folder}/${item.name}`);
+        await supabase.storage.from('fotosperfil').remove(keysToRemove);
+      }
+      // Subir nueva imagen a ruta fija
+      const { error: uploadError } = await supabase.storage
+        .from('fotosperfil')
+        .upload(fixedKey, file, { upsert: true, contentType: file.type });
+      if (uploadError) {
+        setMensaje({ texto: `Error al subir imagen: ${uploadError.message}`, tipo: 'error' });
+        return;
+      }
+      const { data: publicData } = await supabase.storage
+        .from('fotosperfil')
+        .getPublicUrl(fixedKey);
+      const publicUrl = publicData?.publicUrl;
+      if (!publicUrl) {
+        setMensaje({ texto: 'No se pudo obtener URL pública del avatar', tipo: 'error' });
+        return;
+      }
+      const { error: metaError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl, avatar_version: Date.now() } });
+      if (metaError) {
+        setMensaje({ texto: `Error al actualizar avatar: ${metaError.message}`, tipo: 'error' });
+        return;
+      }
+      const { success: exitoActualizacion, data } = await obtenerUsuarioActual();
+      if (exitoActualizacion) {
+        setDatosUsuario(data);
+        setMensaje({ texto: 'Avatar actualizado', tipo: 'success' });
+        setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      }
+    } catch (err) {
+      setMensaje({ texto: 'Error inesperado al actualizar avatar', tipo: 'error' });
+    } finally {
+      setSubiendoAvatar(false);
+      e.target.value = '';
+    }
   };
 
   // ===========================================================================
@@ -227,14 +292,17 @@ const ClienteDashboard = () => {
           <h2>Bienvenido, {datosUsuario.profile.data.nombre_completo || 'Usuario'}</h2>
           <div className="user-avatar">
             <img 
-              src={generarAvatarUsuario(datosUsuario.user.id)} 
+              src={obtenerAvatarUrl(datosUsuario.user)} 
               alt="Avatar del usuario" 
               className="avatar-image"
               onError={(e) => {
-                // Fallback en caso de error al cargar la imagen
                 e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=Usuario';
               }}
             />
+            <label className="btn btn-secondary" style={{ cursor: subiendoAvatar ? 'not-allowed' : 'pointer', marginLeft: '12px' }}>
+              {subiendoAvatar ? 'Subiendo...' : 'Cambiar foto'}
+              <input type="file" accept="image/*" onChange={manejarCambioAvatar} style={{ display: 'none' }} disabled={subiendoAvatar} />
+            </label>
           </div>
         </div>
         
@@ -279,6 +347,12 @@ const ClienteDashboard = () => {
       {/* CONTENIDO PRINCIPAL DEL DASHBOARD */}
       {/* ===================================================================== */}
       <div className="dashboard-content">
+        {/* Snackbar global para estados y resultados */}
+        {mensaje.texto && (
+          <div className={`snackbar snackbar-${mensaje.tipo} show`}>
+            {mensaje.texto}
+          </div>
+        )}
         
         {/* ================================================================= */}
         {/* PESTAÑA: MIS PROYECTOS */}
