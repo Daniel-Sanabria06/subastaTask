@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCurrentUser, logoutUser } from '../supabase/supabaseClient';
+import { obtenerUsuarioActual, cerrarSesion } from '../supabase/autenticacion';
 import '../styles/Header.css';
 import logo from '../assets/logo.png';
 
@@ -33,7 +33,7 @@ const Header = () => {
     const checkUser = async () => {
       try {
         setLoading(true);
-        const { success, data } = await getCurrentUser();
+        const { success, data } = await obtenerUsuarioActual();
         if (success) {
           setUser(data);
         } else {
@@ -52,7 +52,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      const { success } = await logoutUser();
+      const { success } = await cerrarSesion();
       if (success) {
         setUser(null);
         navigate('/login');
