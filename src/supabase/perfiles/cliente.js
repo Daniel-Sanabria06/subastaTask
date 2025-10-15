@@ -133,7 +133,7 @@ export const crearOActualizarPerfilCliente = async (datosPerfil) => {
     // Verificar si ya existe un perfil específico
     const perfilExistente = await obtenerPerfilCliente(usuario.data.user.id);
 
-    if (perfilExistente.success && perfilExistente.data.specificProfile) {
+    if (perfilExistente.success && perfilExistente.data) {
       console.log('📝 Actualizando perfil existente...');
       return await actualizarPerfilCliente(datosPerfil);
     } else {
