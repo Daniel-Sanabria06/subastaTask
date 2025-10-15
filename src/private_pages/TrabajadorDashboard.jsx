@@ -4,6 +4,8 @@ import { actualizarPerfilUsuario } from '../supabase/autenticacion';
 import { supabase } from '../supabase/cliente';
 import { useNavigate } from 'react-router-dom';
 import TrabajadorProfileForm from '../components/TrabajadorProfileForm';
+import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+import PrivacyLabel from '../components/PrivacyLabel';
 import '../styles/Dashboard.css';
 
 const TrabajadorDashboard = () => {
@@ -224,7 +226,7 @@ const handleChange = (e) => {
               }}
             />
             <label className="btn btn-secondary" style={{ cursor: uploadingAvatar ? 'not-allowed' : 'pointer', marginLeft: '12px' }}>
-              {uploadingAvatar ? 'Subiendo...' : 'Cambiar foto'}
+              {uploadingAvatar ? 'Subiendo...' : 'Cambiar foto de perfil'}
               <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} disabled={uploadingAvatar} />
             </label>
           </div>

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { 
   obtenerPerfilTrabajador, 
   crearOActualizarPerfilTrabajador 
-} from '../supabase/perfiles/trabajador';   
+} from '../supabase/perfiles/trabajador';
+import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+import PrivacyLabel from './PrivacyLabel';
 
 const TrabajadorProfileForm = ({ userData, onProfileUpdate }) => {
   const [profileData, setProfileData] = useState({
@@ -184,7 +186,7 @@ const TrabajadorProfileForm = ({ userData, onProfileUpdate }) => {
         <form onSubmit={handleSubmit} className="profile-form">
           <div className="form-group">
             <label htmlFor="nombre_perfil" className="form-label">
-              Nombre del Perfil Profesional *
+              Nombre del Perfil Profesional * <PrivacyLabel isPrivate={false} />
             </label>
             <input
               type="text"
