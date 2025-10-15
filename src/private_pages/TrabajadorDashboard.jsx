@@ -4,6 +4,8 @@ import { actualizarPerfilUsuario } from '../supabase/autenticacion';
 import { supabase } from '../supabase/cliente';
 import { useNavigate } from 'react-router-dom';
 import TrabajadorProfileForm from '../components/TrabajadorProfileForm';
+import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+import PrivacyLabel from '../components/PrivacyLabel';
 import '../styles/Dashboard.css';
 
 const TrabajadorDashboard = () => {
