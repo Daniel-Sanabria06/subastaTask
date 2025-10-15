@@ -224,7 +224,7 @@ const handleChange = (e) => {
               }}
             />
             <label className="btn btn-secondary" style={{ cursor: uploadingAvatar ? 'not-allowed' : 'pointer', marginLeft: '12px' }}>
-              {uploadingAvatar ? 'Subiendo...' : 'Cambiar foto'}
+              {uploadingAvatar ? 'Subiendo...' : 'Cambiar foto de perfil'}
               <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} disabled={uploadingAvatar} />
             </label>
           </div>
