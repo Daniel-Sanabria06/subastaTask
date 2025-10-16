@@ -78,9 +78,8 @@ const RegisterPage = () => {
   
   // Inicializar validaciones cuando el componente se monta
   useEffect(() => {
-    // Mostrar validaciones desde el inicio, incluso con campos vacíos
-    validatePassword('password', '');
-    validatePassword('confirmPassword', '');
+    // Mostrar validaciones desde el inicio con los valores actuales (vacíos al montar)
+    validatePassword(formData.password || '', formData.confirmPassword || '');
   }, []);
 
   const navigate = useNavigate();
