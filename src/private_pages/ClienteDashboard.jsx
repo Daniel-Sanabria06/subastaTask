@@ -1,196 +1,474 @@
+// Dashboard principal para usuarios con perfil de cliente
+// =============================================================================
+
 import { useEffect, useState } from 'react';
-import { getCurrentUser, updateUserProfile } from '../supabase/supabaseClient';
 import { useNavigate } from 'react-router-dom';
+
+// Importar funciones desde la nueva estructura modular
+import { 
+  obtenerUsuarioActual, 
+  actualizarPerfilUsuario 
+} from '../supabase/autenticacion';
+import { supabase } from '../supabase/cliente';
+import { 
+  obtenerPerfilCliente, 
+  //crearOActualizarPerfilCliente 
+} from '../supabase/perfiles';
+
+import ClienteProfileForm from '../components/ClienteProfileForm';
 import '../styles/Dashboard.css';
-import logo from '../assets/logo.png';
 
 const ClienteDashboard = () => {
-  const [userData, setUserData] = useState(null);
-  const [activeTab, setActiveTab] = useState('proyectos');
-  const [editMode, setEditMode] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
-  const [formData, setFormData] = useState({
+  // ===========================================================================
+  // ESTADOS DEL COMPONENTE
+  // ===========================================================================
+  
+  // Estado para datos del usuario autenticado
+  const [datosUsuario, setDatosUsuario] = useState(null);
+  
+  // Estado para controlar la pestaña activa
+  const [pestañaActiva, setPestañaActiva] = useState('proyectos');
+  
+  // Estado para modo edición del perfil básico
+  const [modoEdicion, setModoEdicion] = useState(false);
+  
+  // Estado para indicar cuando se está guardando
+  const [guardando, setGuardando] = useState(false);
+  const [subiendoAvatar, setSubiendoAvatar] = useState(false);
+  
+  // Estado para mensajes de feedback al usuario
+  const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
+  
+  // Estado para datos del formulario de perfil básico
+  const [datosFormulario, setDatosFormulario] = useState({
     nombre_completo: '',
     documento: '',
     email: '',
     edad: '',
     ciudad: ''
   });
-  const navigate = useNavigate();
 
+  const navegar = useNavigate();
+
+  // ===========================================================================
+  // FUNCIONES AUXILIARES
+  // ===========================================================================
+
+  /**
+   * GENERAR AVATAR ÚNICO BASADO EN EL ID DEL USUARIO
+   * Usa el ID del usuario para crear una imagen única pero consistente
+   */
+  const generarAvatarUsuario = (userId) => {
+    const semilla = userId ? userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
+    return `https://picsum.photos/seed/${semilla}/100/100`;
+  };
+
+  const obtenerAvatarUrl = (user) => {
+    const meta = user?.user_metadata || {};
+    if (meta.avatar_url) {
+      const url = meta.avatar_url;
+      const ver = meta.avatar_version;
+      if (ver) {
+        const sep = url.includes('?') ? '&' : '?';
+        return `${url}${sep}v=${ver}`;
+      }
+      return url;
+    }
+    return generarAvatarUsuario(user?.id);
+  };
+
+  const manejarCambioAvatar = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !datosUsuario?.user?.id) return;
+    try {
+      setSubiendoAvatar(true);
+      setMensaje({ texto: 'Subiendo avatar...', tipo: 'success' });
+      const userId = datosUsuario.user.id;
+      const folder = `usuarios/${userId}`;
+      const fixedKey = `${folder}/avatar`;
+      // Eliminar imágenes anteriores del usuario
+      const { data: existingList } = await supabase.storage.from('fotosperfil').list(folder, { limit: 100 });
+      if (Array.isArray(existingList) && existingList.length > 0) {
+        const keysToRemove = existingList.map(item => `${folder}/${item.name}`);
+        await supabase.storage.from('fotosperfil').remove(keysToRemove);
+      }
+      // Subir nueva imagen a ruta fija
+      const { error: uploadError } = await supabase.storage
+        .from('fotosperfil')
+        .upload(fixedKey, file, { upsert: true, contentType: file.type });
+      if (uploadError) {
+        setMensaje({ texto: `Error al subir imagen: ${uploadError.message}`, tipo: 'error' });
+        return;
+      }
+      const { data: publicData } = await supabase.storage
+        .from('fotosperfil')
+        .getPublicUrl(fixedKey);
+      const publicUrl = publicData?.publicUrl;
+      if (!publicUrl) {
+        setMensaje({ texto: 'No se pudo obtener URL pública del avatar', tipo: 'error' });
+        return;
+      }
+      const { error: metaError } = await supabase.auth.updateUser({ data: { avatar_url: publicUrl, avatar_version: Date.now() } });
+      if (metaError) {
+        setMensaje({ texto: `Error al actualizar avatar: ${metaError.message}`, tipo: 'error' });
+        return;
+      }
+      const { success: exitoActualizacion, data } = await obtenerUsuarioActual();
+      if (exitoActualizacion) {
+        setDatosUsuario(data);
+        setMensaje({ texto: 'Avatar actualizado', tipo: 'success' });
+        setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      }
+    } catch (err) {
+      setMensaje({ texto: 'Error inesperado al actualizar avatar', tipo: 'error' });
+    } finally {
+      setSubiendoAvatar(false);
+      e.target.value = '';
+    }
+  };
+
+  // ===========================================================================
+  // EFECTOS
+  // ===========================================================================
+
+  /**
+   * EFECTO: VERIFICAR USUARIO AL CARGAR EL COMPONENTE
+   * - Verifica que el usuario esté autenticado
+   * - Confirma que sea un cliente
+   * - Carga los datos del usuario
+   */
   useEffect(() => {
-    const checkUser = async () => {
+    const verificarUsuario = async () => {
       try {
-        const { success, data, error } = await getCurrentUser();
+        console.log('🔍 Verificando usuario autenticado...');
+        
+        // PASO 1: Obtener usuario actual desde autenticación
+        const { success, data, error } = await obtenerUsuarioActual();
+        
         if (!success) {
-          console.error('Error al obtener usuario:', error);
-          navigate('/login');
+          console.error('❌ Error al obtener usuario:', error);
+          navegar('/login');
           return;
         }
+
+        // PASO 2: Verificar que sea un cliente
         if (data.profile.type !== 'cliente') {
-          navigate('/login');
+          console.warn('⚠️ Usuario no es cliente, redirigiendo...');
+          navegar('/login');
           return;
         }
-        setUserData(data);
-        setFormData({
+
+        // PASO 3: Cargar datos del perfil básico del cliente
+        console.log('✅ Usuario cliente verificado, cargando datos...');
+        setDatosUsuario(data);
+        
+        // PASO 4: Configurar datos del formulario con información actual
+        setDatosFormulario({
           nombre_completo: data.profile.data.nombre_completo || '',
           documento: data.profile.data.documento || '',
           email: data.user.email || '',
           edad: data.profile.data.edad || '',
           ciudad: data.profile.data.ciudad || ''
         });
+
+        // PASO 5: Intentar cargar perfil extendido del cliente
+        try {
+          const perfilCliente = await obtenerPerfilCliente(data.user.id);
+          if (perfilCliente.success && perfilCliente.data) {
+            console.log('📊 Perfil extendido del cliente cargado');
+          }
+        } catch {
+          console.log('ℹ️ El cliente no tiene perfil extendido aún');
+        }
+
       } catch (error) {
-        console.error('Error en checkUser:', error);
-        navigate('/login');
+        console.error('💥 Error en verificarUsuario:', error);
+        navegar('/login');
       }
     };
 
-    checkUser();
-  }, [navigate]);
+    verificarUsuario();
+  }, [navegar]);
 
-  const handleChange = (e) => {
+  // ===========================================================================
+  // MANEJADORES DE EVENTOS
+  // ===========================================================================
+
+  /**
+   * MANEJAR CAMBIOS EN FORMULARIO
+   * Actualiza el estado local cuando el usuario escribe en los campos
+   */
+  const manejarCambio = (e) => {
     const { name, value } = e.target;
-    if (name === 'documento') {
-      setFormData(prev => ({ ...prev, [name]: value.replace(/\D/g, '') }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setDatosFormulario(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  /**
+   * MANEJAR ENVÍO DE FORMULARIO DE PERFIL BÁSICO
+   * Actualiza la información personal del cliente en la base de datos
+   */
+  const manejarEnvio = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setMessage({ text: '', type: '' });
+    setGuardando(true);
+    setMensaje({ texto: '', tipo: '' });
 
     try {
-      // Validar edad
-      const edad = parseInt(formData.edad);
+      console.log('💾 Guardando cambios del perfil básico...');
+
+      // PASO 1: Validar edad
+      const edad = parseInt(datosFormulario.edad);
       if (isNaN(edad) || edad < 18 || edad > 100) {
-        setMessage({ text: 'La edad debe ser un número entre 18 y 100', type: 'error' });
-        setSaving(false);
+        setMensaje({ 
+          texto: 'La edad debe ser un número entre 18 y 100', 
+          tipo: 'error' 
+        });
+        setGuardando(false);
         return;
       }
 
-      const { success, error } = await updateUserProfile(
-        userData.user.id,
-        formData,
+      // PASO 2: Actualizar perfil básico del cliente
+      const { success, error } = await actualizarPerfilUsuario(
+        datosUsuario.user.id,
+        datosFormulario,
         'cliente'
       );
 
       if (success) {
-        setMessage({ text: 'Perfil actualizado correctamente', type: 'success' });
-        setEditMode(false);
-        // Actualizar datos del usuario
-        const { success: refreshSuccess, data } = await getCurrentUser();
-        if (refreshSuccess) {
-          setUserData(data);
+        console.log('✅ Perfil básico actualizado correctamente');
+        setMensaje({ 
+          texto: 'Perfil actualizado correctamente', 
+          tipo: 'success' 
+        });
+        setModoEdicion(false);
+        
+        // PASO 3: Actualizar datos del usuario en el estado
+        const { success: exitoActualizacion, data } = await obtenerUsuarioActual();
+        if (exitoActualizacion) {
+          setDatosUsuario(data);
         }
       } else {
-        setMessage({ text: `Error al actualizar el perfil: ${error.message || 'Desconocido'}`, type: 'error' });
+        console.error('❌ Error al actualizar perfil:', error);
+        setMensaje({ 
+          texto: `Error al actualizar el perfil: ${error.message || 'Desconocido'}`, 
+          tipo: 'error' 
+        });
       }
     } catch (error) {
-      console.error('Error al actualizar perfil:', error);
-      setMessage({ text: 'Error al actualizar el perfil', type: 'error' });
+      console.error('💥 Error al actualizar perfil:', error);
+      setMensaje({ 
+        texto: 'Error al actualizar el perfil', 
+        tipo: 'error' 
+      });
     } finally {
-      setSaving(false);
+      setGuardando(false);
     }
   };
 
-  if (!userData) return <div className="loading-container">Cargando...</div>;
+  // ===========================================================================
+  // RENDERIZADO CONDICIONAL - ESTADOS DE CARGA
+  // ===========================================================================
+
+  if (!datosUsuario) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Cargando información del cliente...</p>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // RENDERIZADO PRINCIPAL
+  // ===========================================================================
 
   return (
     <div className="dashboard-container animate-fade-in">
+      
+      {/* ===================================================================== */}
+      {/* BARRA DE NAVEGACIÓN DEL DASHBOARD */}
+      {/* ===================================================================== */}
       <nav className="dashboard-nav">
         <div className="user-info">
-          <div className="logo-mini">
-            <img src={logo} alt="SubasTask" />
+          <h2>Bienvenido, {datosUsuario.profile.data.nombre_completo || 'Usuario'}</h2>
+          <div className="user-avatar">
+            <img 
+              src={obtenerAvatarUrl(datosUsuario.user)} 
+              alt="Avatar del usuario" 
+              className="avatar-image"
+              onError={(e) => {
+                e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=Usuario';
+              }}
+            />
+            <label className="btn btn-secondary" style={{ cursor: subiendoAvatar ? 'not-allowed' : 'pointer', marginLeft: '12px' }}>
+              {subiendoAvatar ? 'Subiendo...' : 'Cambiar foto'}
+              <input type="file" accept="image/*" onChange={manejarCambioAvatar} style={{ display: 'none' }} disabled={subiendoAvatar} />
+            </label>
           </div>
-
-          <h2>Bienvenido, {userData.profile.data.nombre_completo || 'Usuario'}</h2>
-          <p>{userData.user.email}</p>
         </div>
+        
+        {/* Pestañas de navegación */}
         <ul className="nav-tabs">
           <li>
-            <button
-              className={activeTab === 'proyectos' ? 'active' : ''}
-              onClick={() => setActiveTab('proyectos')}
+            <button 
+              className={pestañaActiva === 'proyectos' ? 'active' : ''} 
+              onClick={() => setPestañaActiva('proyectos')}
             >
-              Mis Ofertas
+              📋 Mis Proyectos
             </button>
           </li>
           <li>
-            <button
-              className={activeTab === 'perfil' ? 'active' : ''}
-              onClick={() => setActiveTab('perfil')}
+            <button 
+              className={pestañaActiva === 'trabajadores' ? 'active' : ''} 
+              onClick={() => setPestañaActiva('trabajadores')}
             >
-              Mi Perfil
+              🔍 Buscar Trabajadores
+            </button>
+          </li>
+          <li>
+            <button 
+              className={pestañaActiva === 'perfil' ? 'active' : ''} 
+              onClick={() => setPestañaActiva('perfil')}
+            >
+              👤 Información Personal
+            </button>
+          </li>
+          <li>
+            <button 
+              className={pestañaActiva === 'mi-perfil' ? 'active' : ''} 
+              onClick={() => setPestañaActiva('mi-perfil')}
+            >
+              🎯 Mi Perfil
             </button>
           </li>
         </ul>
       </nav>
 
+      {/* ===================================================================== */}
+      {/* CONTENIDO PRINCIPAL DEL DASHBOARD */}
+      {/* ===================================================================== */}
       <div className="dashboard-content">
-        {activeTab === 'proyectos' && (
+        {/* Snackbar global para estados y resultados */}
+        {mensaje.texto && (
+          <div className={`snackbar snackbar-${mensaje.tipo} show`}>
+            {mensaje.texto}
+          </div>
+        )}
+        
+        {/* ================================================================= */}
+        {/* PESTAÑA: MIS PROYECTOS */}
+        {/* ================================================================= */}
+        {pestañaActiva === 'proyectos' && (
           <div className="tab-content animate-fade-in">
-            <h2 className="section-title">Mis Ofertas</h2>
+            <h2 className="section-title">Mis Proyectos</h2>
             <div className="empty-state">
-              <p>No tienes ofertas activas en este momento.</p>
+              <p>No tienes proyectos activos en este momento.</p>
+              <button className="btn btn-primary">
+                ➕ Crear Nuevo Proyecto
+              </button>
             </div>
           </div>
         )}
 
-        {activeTab === 'perfil' && (
+        {/* ================================================================= */}
+        {/* PESTAÑA: BUSCAR TRABAJADORES */}
+        {/* ================================================================= */}
+        {pestañaActiva === 'trabajadores' && (
+          <div className="tab-content animate-fade-in">
+            <h2 className="section-title">Buscar Trabajadores</h2>
+            <div className="empty-state">
+              <p>Aquí podrás buscar y contactar trabajadores calificados.</p>
+              <button className="btn btn-primary">
+                🔍 Explorar Trabajadores
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* PESTAÑA: MI PERFIL (PERFIL EXTENDIDO) */}
+        {/* ================================================================= */}
+        {pestañaActiva === 'mi-perfil' && (
+          <div className="tab-content animate-fade-in">
+            {/* Componente para el perfil extendido del cliente */}
+            <ClienteProfileForm 
+              usuarioId={datosUsuario.user.id}
+              onPerfilGuardado={() => {
+                setMensaje({ 
+                  texto: 'Perfil extendido guardado correctamente', 
+                  tipo: 'success' 
+                });
+              }}
+            />
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* PESTAÑA: INFORMACIÓN PERSONAL (PERFIL BÁSICO) */}
+        {/* ================================================================= */}
+        {pestañaActiva === 'perfil' && (
           <div className="tab-content animate-fade-in">
             <div className="profile-section">
+              
+              {/* Encabezado de la sección */}
               <div className="section-header">
                 <h2 className="section-title">Información Personal</h2>
-                {!editMode ? (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => setEditMode(true)}
+                {!modoEdicion ? (
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => setModoEdicion(true)}
                   >
-                    Editar Perfil
+                    ✏️ Editar Perfil
                   </button>
                 ) : null}
               </div>
 
-              {message.text && (
-                <div className={`alert alert-${message.type}`}>
-                  {message.text}
+              {/* Mensajes de feedback */}
+              {mensaje.texto && (
+                <div className={`alert alert-${mensaje.tipo}`}>
+                  {mensaje.texto}
                 </div>
               )}
 
-              {editMode ? (
-                <form onSubmit={handleSubmit} className="profile-form">
+              {/* FORMULARIO DE EDICIÓN */}
+              {modoEdicion ? (
+                <form onSubmit={manejarEnvio} className="profile-form">
+                  
+                  {/* Fila 1: Nombre y Documento */}
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="nombre_completo" className="form-label">Nombre Completo</label>
+                      <label htmlFor="nombre_completo" className="form-label">
+                        Nombre Completo *
+                      </label>
                       <input
                         type="text"
                         id="nombre_completo"
                         name="nombre_completo"
                         className="form-control"
-                        value={formData.nombre_completo}
-                        onChange={handleChange}
+                        value={datosFormulario.nombre_completo}
+                        onChange={manejarCambio}
                         required
+                        placeholder="Ingresa tu nombre completo"
                       />
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="documento" className="form-label">Documento de Identidad</label>
+                      <label htmlFor="documento" className="form-label">
+                        Documento de Identidad *
+                      </label>
                       <input
                         type="text"
                         id="documento"
                         name="documento"
                         className="form-control"
-                        value={formData.documento}
-                        onChange={handleChange}
+                        value={datosFormulario.documento}
+                        onChange={manejarCambio}
                         required
+                        placeholder="Número de documento"
                       />
                     </div>
                   </div>
 
+                  {/* Fila 2: Email y Edad */}
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="email" className="form-label">Email</label>
@@ -199,100 +477,93 @@ const ClienteDashboard = () => {
                         id="email"
                         name="email"
                         className="form-control"
-                        value={formData.email}
-                        onChange={handleChange}
+                        value={datosFormulario.email}
+                        onChange={manejarCambio}
                         disabled
+                        title="El email no se puede modificar"
                       />
-                      <small className="form-text text-muted">El email no se puede modificar</small>
+                      <small className="form-text">
+                        El email no se puede modificar
+                      </small>
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="edad" className="form-label">Edad</label>
+                      <label htmlFor="edad" className="form-label">Edad *</label>
                       <input
                         type="number"
                         id="edad"
                         name="edad"
                         className="form-control"
-                        value={formData.edad}
-                        onChange={handleChange}
+                        value={datosFormulario.edad}
+                        onChange={manejarCambio}
                         min="18"
                         max="100"
                         required
+                        placeholder="18"
                       />
                     </div>
                   </div>
 
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="ciudad" className="form-label">Ciudad</label>
-                      <input
-                        type="text"
-                        id="ciudad"
-                        name="ciudad"
-                        className="form-control"
-                        value={formData.ciudad}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
+                  {/* Fila 3: Ciudad */}
+                  <div className="form-group">
+                    <label htmlFor="ciudad" className="form-label">Ciudad *</label>
+                    <input
+                      type="text"
+                      id="ciudad"
+                      name="ciudad"
+                      className="form-control"
+                      value={datosFormulario.ciudad}
+                      onChange={manejarCambio}
+                      required
+                      placeholder="Ciudad de residencia"
+                    />
                   </div>
 
+                  {/* Botones de acción */}
                   <div className="form-actions">
-                    <button
-                      type="submit"
-                      className="btn btn-success"
-                      disabled={saving}
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={guardando}
                     >
-                      {saving ? 'Guardando...' : 'Guardar Cambios'}
+                      {guardando ? '💾 Guardando...' : '✅ Guardar Cambios'}
                     </button>
-                    <button
-                      type="button"
+                    <button 
+                      type="button" 
                       className="btn btn-secondary"
                       onClick={() => {
-                        setEditMode(false);
-                        setMessage({ text: '', type: '' });
-                        // Restaurar datos originales
-                        if (userData) {
-                          setFormData({
-                            nombre_completo: userData.profile.data.nombre_completo || '',
-                            documento: userData.profile.data.documento || '',
-                            email: userData.user.email || '',
-                            edad: userData.profile.data.edad || '',
-                            ciudad: userData.profile.data.ciudad || ''
-                          });
-                        }
+                        setModoEdicion(false);
+                        setMensaje({ texto: '', tipo: '' });
                       }}
                     >
-                      Cancelar
+                      ❌ Cancelar
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="profile-info">
-                  <div className="info-row">
-                    <div className="info-group">
-                      <h3>Nombre Completo</h3>
-                      <p>{userData.profile.data.nombre_completo || 'No especificado'}</p>
+                /* VISTA DE SOLO LECTURA */
+                <div className="profile-display">
+                  <div className="profile-info">
+                    <div className="info-row">
+                      <div className="info-item">
+                        <strong>👤 Nombre:</strong> {datosUsuario.profile.data.nombre_completo}
+                      </div>
+                      <div className="info-item">
+                        <strong>📄 Documento:</strong> {datosUsuario.profile.data.documento}
+                      </div>
                     </div>
-                    <div className="info-group">
-                      <h3>Documento de Identidad</h3>
-                      <p>{userData.profile.data.documento || 'No especificado'}</p>
+                    <div className="info-row">
+                      <div className="info-item">
+                        <strong>📧 Email:</strong> {datosUsuario.user.email}
+                      </div>
+                      <div className="info-item">
+                        <strong>🎂 Edad:</strong> {datosUsuario.profile.data.edad} años
+                      </div>
                     </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-group">
-                      <h3>Email</h3>
-                      <p>{userData.user.email}</p>
-                    </div>
-                    <div className="info-group">
-                      <h3>Edad</h3>
-                      <p>{userData.profile.data.edad || 'No especificada'}</p>
-                    </div>
-                  </div>
-                  <div className="info-row">
-                    <div className="info-group">
-                      <h3>Ciudad</h3>
-                      <p>{userData.profile.data.ciudad || 'No especificada'}</p>
+                    <div className="info-row">
+                      <div className="info-item">
+                        <strong>🏙️ Ciudad:</strong> {datosUsuario.profile.data.ciudad}
+                      </div>
                     </div>
                   </div>
                 </div>

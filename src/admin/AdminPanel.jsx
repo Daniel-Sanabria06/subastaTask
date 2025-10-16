@@ -1,33 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { listAllUsers, deleteUserById, getCurrentUser } from '../supabase/supabaseClient';
-import { Link } from 'react-router-dom';
-import { supabase } from '../supabase/supabaseClient';
+import { listarTodosUsuarios, eliminarUsuarioPorId } from '../supabase/administracion';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase, esCorreoAdmin, CORREOS_ADMIN } from '../supabase/cliente';
 import '../styles/LoginPage.css';
 
-// Autorización basada en rol via getCurrentUser (administrador)
+const CODIGO_ACCESO_ADMIN = import.meta.env.VITE_CODIGO_ACCESO_ADMIN || 'admin2025';
 
 const AdminPanel = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [usuarios, setUsuarios] = useState([]);
+  const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
+  const [eliminandoId, setEliminandoId] = useState(null);
   // Autorización
-  const [authorized, setAuthorized] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [passError, setPassError] = useState('');
-  // Ordenamiento (por creado o último acceso)
-  const [sortKey, setSortKey] = useState('created_at'); // 'created_at' | 'last_sign_in_at'
-  const [sortDir, setSortDir] = useState('desc'); // 'asc' | 'desc'
-  // Snackbar para acciones (copiar UID)
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMsg, setSnackbarMsg] = useState('');
-  const [snackbarType, setSnackbarType] = useState('success');
-  const [copyingId, setCopyingId] = useState(null);
+  const [autorizado, setAutorizado] = useState(false);
+  const [verificandoAutenticacion, setVerificandoAutenticacion] = useState(true);
+  const [codigoAcceso, setCodigoAcceso] = useState('');
+  const [errorCodigo, setErrorCodigo] = useState('');
+  // Ordenamiento
+  const [claveOrdenamiento, setClaveOrdenamiento] = useState('created_at');
+  const [direccionOrdenamiento, setDireccionOrdenamiento] = useState('desc');
+  // Snackbar
+  const [snackbarAbierto, setSnackbarAbierto] = useState(false);
+  const [mensajeSnackbar, setMensajeSnackbar] = useState('');
+  const [tipoSnackbar, setTipoSnackbar] = useState('success');
+  const [copiandoId, setCopiandoId] = useState(null);
+  
+  const navigate = useNavigate();
 
-  const normalizeUsers = (data) => {
-    // La Edge Function puede devolver { users: [...] } o directamente [...]
-    const list = Array.isArray(data) ? data : (data?.users || []);
-    return list.map((u) => ({
+  const normalizarUsuarios = (datos) => {
+    const lista = Array.isArray(datos) ? datos : (datos?.users || []);
+    return lista.map((u) => ({
       id: u.id,
       email: u.email,
       phone: u.phone,
@@ -39,13 +41,12 @@ const AdminPanel = () => {
     }));
   };
 
-  // Formatear fecha amigable (es-ES)
-  const formatDate = (value) => {
-    if (!value) return '-';
+  const formatearFecha = (valor) => {
+    if (!valor) return '-';
     try {
-      const d = new Date(value);
-      if (isNaN(d.getTime())) return '-';
-      return d.toLocaleString('es-ES', {
+      const fecha = new Date(valor);
+      if (isNaN(fecha.getTime())) return '-';
+      return fecha.toLocaleString('es-ES', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit'
       });
@@ -54,21 +55,21 @@ const AdminPanel = () => {
     }
   };
 
-  const fetchUsers = async () => {
+  const obtenerUsuarios = async () => {
     try {
-      setLoading(true);
+      setCargando(true);
       setError(null);
-      const { success, data, error } = await listAllUsers();
+      const { success, data, error } = await listarTodosUsuarios();
       if (!success) {
         throw error || new Error('No se pudo obtener la lista de usuarios');
       }
-      const normalized = normalizeUsers(data);
-      setUsers(normalized);
+      const usuariosNormalizados = normalizarUsuarios(data);
+      setUsuarios(usuariosNormalizados);
     } catch (e) {
       console.error('Error al obtener usuarios:', e);
       setError(e?.message || 'Error desconocido al obtener usuarios');
     } finally {
-      setLoading(false);
+      setCargando(false);
     }
   };
 
@@ -76,98 +77,147 @@ const AdminPanel = () => {
     // Verificar sesión y email admin
     (async () => {
       try {
-        setCheckingAuth(true);
-        const { success, data } = await getCurrentUser();
-        setAuthorized(success && data?.profile?.type === 'administrador');
-      } catch (e) {
-        setAuthorized(false);
+        setVerificandoAutenticacion(true);
+        
+        // Primero verificar si hay sesión activa
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          console.log('🔐 No hay sesión activa, mostrando formulario de passcode');
+          setVerificandoAutenticacion(false);
+          return;
+        }
+
+        // Si hay sesión, verificar si el usuario es admin
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error al obtener usuario:', userError);
+          setVerificandoAutenticacion(false);
+          return;
+        }
+
+        const email = user?.email || '';
+        const esAdmin = esCorreoAdmin(email);
+        
+        console.log('🔍 Debug administrador:');
+        console.log('Email del usuario:', email);
+        console.log('¿Es admin?:', esAdmin);
+        console.log('Correos admin configurados:', CORREOS_ADMIN);
+        
+        setAutorizado(esAdmin);
+        
+      } catch (error) {
+        console.error('Error en verificación de autenticación:', error);
+        setAutorizado(false);
       } finally {
-        setCheckingAuth(false);
+        setVerificandoAutenticacion(false);
       }
     })();
   }, []);
 
   // Cargar usuarios cuando esté autorizado
   useEffect(() => {
-    if (!authorized) return;
-    fetchUsers();
-  }, [authorized]);
+    if (!autorizado) return;
+    obtenerUsuarios();
+  }, [autorizado]);
 
-  const handleDelete = async (userId) => {
-    const confirm = window.confirm('¿Seguro que deseas eliminar este usuario de forma permanente? Esta acción no se puede deshacer.');
-    if (!confirm) return;
+  const manejarEliminacion = async (idUsuario) => {
+    const confirmar = window.confirm('¿Seguro que deseas eliminar este usuario de forma permanente? Esta acción no se puede deshacer.');
+    if (!confirmar) return;
     try {
-      setDeletingId(userId);
-      const { success, error } = await deleteUserById(userId);
+      setEliminandoId(idUsuario);
+      const { success, error } = await eliminarUsuarioPorId(idUsuario);
       if (!success) {
         throw error || new Error('No se pudo eliminar el usuario');
       }
-      // Remover de la lista local
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setUsuarios((prev) => prev.filter((u) => u.id !== idUsuario));
     } catch (e) {
       console.error('Error al eliminar usuario:', e);
       alert(e?.message || 'Error desconocido al eliminar usuario');
     } finally {
-      setDeletingId(null);
+      setEliminandoId(null);
     }
   };
 
-  const handlePasscodeSubmit = (e) => {
+  const manejarEnvioCodigo = async (e) => {
     e.preventDefault();
-    setPassError('Debes iniciar sesión con una cuenta de administrador');
-  };
-
-  // Copiar UID
-  const handleCopyUid = async (uid) => {
-    try {
-      setCopyingId(uid);
-      await navigator.clipboard.writeText(uid);
-      setSnackbarMsg('UID copiado al portapapeles');
-      setSnackbarType('success');
-      setSnackbarOpen(true);
-    } catch (e) {
-      setSnackbarMsg('No se pudo copiar el UID');
-      setSnackbarType('error');
-      setSnackbarOpen(true);
-    } finally {
-      setTimeout(() => setCopyingId(null), 600);
-      // autocerrar snackbar
-      setTimeout(() => setSnackbarOpen(false), 3500);
+    if (!codigoAcceso) {
+      setErrorCodigo('Ingresa el código de acceso de administrador');
+      return;
     }
-  };
+    
+    if (codigoAcceso === CODIGO_ACCESO_ADMIN) {
+      // Verificar si hay sesión activa después de validar el passcode
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setErrorCodigo('Debes iniciar sesión primero');
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+        return;
+      }
 
-  // Ordenar
-  const handleSort = (key) => {
-    if (sortKey === key) {
-      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      // Verificar si el usuario logueado es admin
+      const { data: { user } } = await supabase.auth.getUser();
+      const email = user?.email || '';
+      const esAdmin = esCorreoAdmin(email);
+
+      if (!esAdmin) {
+        setErrorCodigo('Tu cuenta no tiene permisos de administrador');
+        return;
+      }
+
+      setAutorizado(true);
+      setErrorCodigo('');
     } else {
-      setSortKey(key);
-      setSortDir('desc');
+      setErrorCodigo('Código de acceso incorrecto');
     }
   };
 
-  const sortedUsers = [...users].sort((a, b) => {
-    const va = a[sortKey];
-    const vb = b[sortKey];
-    const da = va ? new Date(va).getTime() : 0;
-    const db = vb ? new Date(vb).getTime() : 0;
-    return sortDir === 'asc' ? da - db : db - da;
+  const manejarCopiarUid = async (uid) => {
+    try {
+      setCopiandoId(uid);
+      await navigator.clipboard.writeText(uid);
+      setMensajeSnackbar('UID copiado al portapapeles');
+      setTipoSnackbar('success');
+      setSnackbarAbierto(true);
+    } catch {
+      setMensajeSnackbar('No se pudo copiar el UID');
+      setTipoSnackbar('error');
+      setSnackbarAbierto(true);
+    } finally {
+      setTimeout(() => setCopiandoId(null), 600);
+      setTimeout(() => setSnackbarAbierto(false), 3500);
+    }
+  };
+
+  const manejarOrdenamiento = (clave) => {
+    if (claveOrdenamiento === clave) {
+      setDireccionOrdenamiento((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setClaveOrdenamiento(clave);
+      setDireccionOrdenamiento('desc');
+    }
+  };
+
+  const usuariosOrdenados = [...usuarios].sort((a, b) => {
+    const valorA = a[claveOrdenamiento];
+    const valorB = b[claveOrdenamiento];
+    const fechaA = valorA ? new Date(valorA).getTime() : 0;
+    const fechaB = valorB ? new Date(valorB).getTime() : 0;
+    return direccionOrdenamiento === 'asc' ? fechaA - fechaB : fechaB - fechaA;
   });
 
-  const sortIndicator = (key) => {
-    if (sortKey !== key) return '';
-    return sortDir === 'asc' ? ' ▲' : ' ▼';
-  };
-
-  // Ícono de orden en encabezados
-  const renderSortIcon = (key) => {
-    const active = sortKey === key;
-    const dir = sortDir;
-    const color = active ? '#1976d2' : '#9aa0a6';
+  const renderizarIconoOrden = (clave) => {
+    const activo = claveOrdenamiento === clave;
+    const direccion = direccionOrdenamiento;
+    const color = activo ? '#1976d2' : '#9aa0a6';
     return (
       <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" style={{ verticalAlign: 'middle', marginLeft: 6 }}>
-        {active ? (
-          dir === 'asc' ? (
+        {activo ? (
+          direccion === 'asc' ? (
             <path fill={color} d="M12 8l-6 6h12z" />
           ) : (
             <path fill={color} d="M12 16l6-6H6z" />
@@ -182,40 +232,58 @@ const AdminPanel = () => {
     );
   };
 
+  // Función para redirigir al login
+  const redirigirALogin = () => {
+    navigate('/login');
+  };
+
   return (
-    !authorized ? (
+    !autorizado ? (
       <div className="login-container">
         <div className="login-form-wrapper">
           <div className="text-center mb-8">
             <Link to="/" className="inline-block">
               <h1 className="app-title">Acceso Administrador</h1>
             </Link>
-            <p className="form-subtitle">Acceso exclusivo para administradores.</p>
+            <p className="form-subtitle">Esta sección está protegida. Valida acceso.</p>
           </div>
 
           <div className="card" style={{ padding: '1rem' }}>
-            {checkingAuth ? (
+            {verificandoAutenticacion ? (
               <p className="text-muted">Verificando sesión...</p>
             ) : (
-              <form onSubmit={handlePasscodeSubmit}>
-                <div className="form-group">
-                  <label htmlFor="adminPasscode" className="form-label">Passcode de Administrador</label>
-                  <input
-                    id="adminPasscode"
-                    type="password"
-                    className="input"
-                    placeholder="Passcode no requerido. Inicia sesión como admin."
-                    disabled
-                  />
+              <div>
+                <form onSubmit={manejarEnvioCodigo}>
+                  <div className="form-group">
+                    <label htmlFor="codigoAccesoAdmin" className="form-label">Código de Acceso de Administrador</label>
+                    <input
+                      id="codigoAccesoAdmin"
+                      type="password"
+                      className="input"
+                      placeholder="Ingresa el código de acceso"
+                      value={codigoAcceso}
+                      onChange={(e) => setCodigoAcceso(e.target.value)}
+                    />
+                  </div>
+                  {errorCodigo && (
+                    <div className="mt-2" style={{ color: '#d32f2f' }}>{errorCodigo}</div>
+                  )}
+                  <button type="submit" className="btn-primary" style={{ width: '100%', marginBottom: '1rem' }}>
+                    Validar acceso
+                  </button>
+                </form>
+                
+                <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                  <p style={{ marginBottom: '0.5rem', color: '#666' }}>¿No has iniciado sesión?</p>
+                  <button 
+                    onClick={redirigirALogin} 
+                    className="btn-secondary"
+                    style={{ width: '100%' }}
+                  >
+                    Ir a inicio de sesión
+                  </button>
                 </div>
-                {passError && (
-                  <div className="mt-2" style={{ color: '#d32f2f' }}>{passError}</div>
-                )}
-                <button type="submit" className="btn-primary">Validar acceso</button>
-                <div className="mt-6 text-center">
-                  <Link to="/login" className="link-primary">Ir a inicio de sesión</Link>
-                </div>
-              </form>
+              </div>
             )}
           </div>
         </div>
@@ -231,8 +299,8 @@ const AdminPanel = () => {
 
         <div className="card" style={{ padding: '1rem' }}>
           <div className="flex" style={{ justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <button className="btn-primary" onClick={fetchUsers} disabled={loading}>
-              {loading ? 'Cargando...' : 'Refrescar lista'}
+            <button className="btn-primary" onClick={obtenerUsuarios} disabled={cargando}>
+              {cargando ? 'Cargando...' : 'Actualizar lista'}
             </button>
             {error && <span className="text-danger">{error}</span>}
           </div>
@@ -243,31 +311,35 @@ const AdminPanel = () => {
                 <tr>
                   <th style={{ textAlign: 'left' }}>UID</th>
                   <th style={{ textAlign: 'left' }}>Email</th>
-                  <th style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => handleSort('created_at')}>Creado{renderSortIcon('created_at')}</th>
-                  <th style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => handleSort('last_sign_in_at')}>Último acceso{renderSortIcon('last_sign_in_at')}</th>
+                  <th style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => manejarOrdenamiento('created_at')}>
+                    Creado{renderizarIconoOrden('created_at')}
+                  </th>
+                  <th style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => manejarOrdenamiento('last_sign_in_at')}>
+                    Último acceso{renderizarIconoOrden('last_sign_in_at')}
+                  </th>
                   <th style={{ textAlign: 'left' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedUsers.length === 0 && !loading && (
+                {usuariosOrdenados.length === 0 && !cargando && (
                   <tr>
                     <td colSpan={5} style={{ padding: '1rem', textAlign: 'center' }}>No hay usuarios para mostrar</td>
                   </tr>
                 )}
-                {sortedUsers.map((u) => (
-                  <tr key={u.id} style={{ borderTop: '1px solid #eee' }}>
+                {usuariosOrdenados.map((usuario) => (
+                  <tr key={usuario.id} style={{ borderTop: '1px solid #eee' }}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span title={u.id}>{(u.id || '').slice(0, 3)}...</span>
+                        <span title={usuario.id}>{(usuario.id || '').slice(0, 3)}...</span>
                         <button
                           className="btn-copy"
                           style={{ padding: '10px', maxWidth: 40, fontSize: '0.85rem', alignItems: 'center', justifyContent: 'center' }}
-                          onClick={() => handleCopyUid(u.id)}
+                          onClick={() => manejarCopiarUid(usuario.id)}
                           title="Copiar UID"
                           aria-label="Copiar UID"
-                          disabled={copyingId === u.id}
+                          disabled={copiandoId === usuario.id}
                         >
-                          {copyingId === u.id ? (
+                          {copiandoId === usuario.id ? (
                             <svg width="20" height="30" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffffff" d="M9 16.2l-3.5-3.5L4 14.2l5 5 12-12-1.4-1.4z"/></svg>
                           ) : (
                             <svg width="20" height="30" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffffff" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5c0-1.1-.9-2-2-2zm-7 .5c.28 0 .5.22.5.5s-.22.5-.5.5-.5-.22-.5-.5.22-.5.5-.5zM19 21H5V5h2v2h10V5h2v16z"/></svg>
@@ -275,19 +347,19 @@ const AdminPanel = () => {
                         </button>
                       </div>
                     </td>
-                    <td>{u.email}</td>
-                    <td>{formatDate(u.created_at)}</td>
-                    <td>{formatDate(u.last_sign_in_at)}</td>
+                    <td>{usuario.email}</td>
+                    <td>{formatearFecha(usuario.created_at)}</td>
+                    <td>{formatearFecha(usuario.last_sign_in_at)}</td>
                     <td>
                       <button
                         className="btn-delete"
                         style={{ background: '#d9534f', padding: '6px', maxWidth: 40, fontSize: '0.85rem', alignItems: 'center', justifyContent: 'center' }}
-                        onClick={() => handleDelete(u.id)}
+                        onClick={() => manejarEliminacion(usuario.id)}
                         title="Eliminar usuario"
                         aria-label="Eliminar usuario"
-                        disabled={deletingId === u.id}
+                        disabled={eliminandoId === usuario.id}
                       >
-                        {deletingId === u.id ? (
+                        {eliminandoId === usuario.id ? (
                           <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffffff" d="M12 4a8 8 0 1 0 8 8 8.009 8.009 0 0 0-8-8zm1 8.59V8h-2v6l5.2 3.12 1-1.64z"/></svg>
                         ) : (
                           <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffffff" d="M9 3h6l1 2h4v2H4V5h4l1-2zm-1 6h2v9H8V9zm6 0h2v9h-2V9z"/></svg>
@@ -303,12 +375,12 @@ const AdminPanel = () => {
 
         {/* Snackbar */}
         <div
-          className={`snackbar ${snackbarType === 'error' ? 'snackbar-error' : 'snackbar-success'} ${snackbarOpen ? 'show' : ''}`}
+          className={`snackbar ${tipoSnackbar === 'error' ? 'snackbar-error' : 'snackbar-success'} ${snackbarAbierto ? 'show' : ''}`}
           role="status"
           aria-live="polite"
         >
-          <span>{snackbarMsg}</span>
-          <button className="snackbar-close" onClick={() => setSnackbarOpen(false)} aria-label="Cerrar aviso">×</button>
+          <span>{mensajeSnackbar}</span>
+          <button className="snackbar-close" onClick={() => setSnackbarAbierto(false)} aria-label="Cerrar aviso">×</button>
         </div>
       </div>
     )

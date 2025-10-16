@@ -1,8 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { loginUser } from '../supabase/supabaseClient';
+import { iniciarSesion} from '../supabase/autenticacion';
 import '../styles/LoginPage.css';
-import logo from '../assets/logo.png';
 
 
 const LoginPage = () => {
@@ -28,22 +27,34 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { email, password } = formData;
+    const { email, password } = formData; 
     try {
       // Mostrar estado de carga
       setIsLoaded(false);
-
+      
       // Iniciar sesión con Supabase
-      const { success, data, error } = await loginUser(email, password);
-
+      const { success, data, error } = await iniciarSesion(email, password);
+      
       if (success) {
         console.log('Inicio de sesión exitoso:', data);
-
+        
         // Redirigir según el tipo de usuario
         if (data.profile && data.profile.type) {
-          const redirectPath = data.profile.type === 'cliente'
-            ? '/cliente/dashboard'
-            : '/trabajador/dashboard';
+          let redirectPath;
+          
+          switch (data.profile.type) {
+            case 'cliente':
+              redirectPath = '/cliente/dashboard';
+              break;
+            case 'trabajador':
+              redirectPath = '/trabajador/dashboard';
+              break;
+            case 'administrador':
+              redirectPath = '/admin';
+              break;
+            default:
+              redirectPath = '/';
+          }
           navigate(redirectPath);
         } else {
           // Si no hay información del perfil, redirigir a la página principal
@@ -66,11 +77,6 @@ const LoginPage = () => {
     <div className={`login-container ${isLoaded ? 'animate-fade-in' : 'opacity-0'}`}>
       <div className="login-form-wrapper">
         <div className="text-center mb-8">
-          <img
-            src={logo}
-            alt="SubasTask Logo"
-            className="logo-auth"
-          />
           <Link to="/" className="inline-block">
             <h1 className="app-title">SubastaTask</h1>
           </Link>
