@@ -3,10 +3,19 @@ import { useState, useEffect } from 'react';
 import { registerUser } from '../supabase/supabaseClient';
 import '../styles/RegisterPage.css';
 import logo from '../assets/logo.png';
+import Swal from 'sweetalert2';
 
 
 const RegisterPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false,
+    match: false
+  });
   const [formData, setFormData] = useState({
     nombre_completo: '',
     documento: '',
@@ -26,6 +35,23 @@ const RegisterPage = () => {
     setIsLoaded(true);
   }, []);
 
+  // Función para validar la contraseña
+  const validatePassword = (password, confirmPassword) => {
+    const errors = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[^A-Za-z0-9]/.test(password),
+      match: password === confirmPassword
+    };
+    
+    setPasswordErrors(errors);
+    
+    // Devuelve true si todos los criterios se cumplen
+    return Object.values(errors).every(value => value === true);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -34,9 +60,28 @@ const RegisterPage = () => {
       const soloNumeros = value.replace(/\D/g, ''); // Elimina todo lo que no sea dígito
       setFormData(prev => ({ ...prev, [name]: soloNumeros }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => {
+        const updatedData = { ...prev, [name]: value };
+        
+        // Validar contraseña mientras se escribe
+        if (name === 'password' || name === 'confirmPassword') {
+          validatePassword(
+            name === 'password' ? value : updatedData.password,
+            name === 'confirmPassword' ? value : updatedData.confirmPassword
+          );
+        }
+        
+        return updatedData;
+      });
     }
   };
+  
+  // Inicializar validaciones cuando el componente se monta
+  useEffect(() => {
+    // Mostrar validaciones desde el inicio, incluso con campos vacíos
+    validatePassword('password', '');
+    validatePassword('confirmPassword', '');
+  }, []);
 
   const navigate = useNavigate();
 
@@ -44,7 +89,13 @@ const RegisterPage = () => {
     e.preventDefault();
     // Validar que las contraseñas coincidan
     if (formData.password !== formData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      Swal.fire({
+        title: '¡Error!',
+        text: 'Las contraseñas no coinciden',
+        icon: 'error',
+        confirmButtonText: 'Intentar de nuevo',
+        confirmButtonColor: "#3a86ff"
+      });
       return;
     }
 
@@ -56,14 +107,33 @@ const RegisterPage = () => {
       const { success, error } = await registerUser(formData);
 
       if (success) {
-        alert('Usuario registrado correctamente');
-        navigate('/login');
+        Swal.fire({
+          title: '¡Registro exitoso!',
+          text: 'Usuario registrado correctamente',
+          icon: 'success',
+          confirmButtonText: 'Continuar',
+          confirmButtonColor: "#3a86ff"
+        }).then(() => {
+          navigate('/login');
+        });
       } else {
-        alert(`Error al registrar: ${error.message}`);
+        Swal.fire({
+          title: '¡Error!',
+          text: `Error al registrar: ${error.message}`,
+          icon: 'error',
+          confirmButtonText: 'Intentar de nuevo',
+          confirmButtonColor: "#3a86ff"
+        });
       }
     } catch (error) {
       console.error('Error en el registro:', error);
-      alert('Ocurrió un error durante el registro');
+      Swal.fire({
+        title: '¡Error!',
+        text: 'Ocurrió un error durante el registro',
+        icon: 'error',
+        confirmButtonText: 'Intentar de nuevo',
+        confirmButtonColor: "#3a86ff"
+      });
     } finally {
       setIsLoaded(true);
     }
@@ -178,11 +248,46 @@ const RegisterPage = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="input"
+                className={`input ${formData.password && !passwordErrors.length ? 'border-red-500' : ''}`}
                 placeholder="********"
                 required
                 minLength="8"
               />
+              <div className="password-validation mt-2 p-2 border rounded bg-gray-50">
+                <p className="text-sm font-semibold mb-2">La contraseña debe tener:</p>
+                <ul className="text-xs space-y-2">
+                  <li className={`flex items-center ${passwordErrors.length ? 'text-green-600 font-medium' : 'text-red-600'}`}>
+                    <span className={`inline-block mr-2 font-bold ${passwordErrors.length ? 'text-green-600' : 'text-red-600'}`}>
+                      {passwordErrors.length ? '✓' : '✗'}
+                    </span>
+                    Al menos 8 caracteres
+                  </li>
+                  <li className={`flex items-center ${passwordErrors.uppercase ? 'text-green-600 font-medium' : 'text-red-600'}`}>
+                    <span className={`inline-block mr-2 font-bold ${passwordErrors.uppercase ? 'text-green-600' : 'text-red-600'}`}>
+                      {passwordErrors.uppercase ? '✓' : '✗'}
+                    </span>
+                    Al menos una letra mayúscula
+                  </li>
+                  <li className={`flex items-center ${passwordErrors.lowercase ? 'text-green-600 font-medium' : 'text-red-600'}`}>
+                    <span className={`inline-block mr-2 font-bold ${passwordErrors.lowercase ? 'text-green-600' : 'text-red-600'}`}>
+                      {passwordErrors.lowercase ? '✓' : '✗'}
+                    </span>
+                    Al menos una letra minúscula
+                  </li>
+                  <li className={`flex items-center ${passwordErrors.number ? 'text-green-600 font-medium' : 'text-red-600'}`}>
+                    <span className={`inline-block mr-2 font-bold ${passwordErrors.number ? 'text-green-600' : 'text-red-600'}`}>
+                      {passwordErrors.number ? '✓' : '✗'}
+                    </span>
+                    Al menos un número
+                  </li>
+                  <li className={`flex items-center ${passwordErrors.special ? 'text-green-600 font-medium' : 'text-red-600'}`}>
+                    <span className={`inline-block mr-2 font-bold ${passwordErrors.special ? 'text-green-600' : 'text-red-600'}`}>
+                      {passwordErrors.special ? '✓' : '✗'}
+                    </span>
+                    Al menos un carácter especial
+                  </li>
+                </ul>
+              </div>
             </div>
 
             <div className="form-group">
@@ -195,11 +300,14 @@ const RegisterPage = () => {
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="input"
+                className={`input ${formData.confirmPassword && !passwordErrors.match ? 'border-red-500' : ''}`}
                 placeholder="********"
                 required
                 minLength="8"
               />
+              {formData.confirmPassword && !passwordErrors.match && (
+                <p className="text-red-500 text-xs mt-1">Las contraseñas no coinciden</p>
+              )}
             </div>
 
             <div className="form-group">
