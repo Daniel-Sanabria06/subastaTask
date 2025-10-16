@@ -117,11 +117,18 @@ const OlvidePassword = () => {
       setMessageType('error');
       return;
     }
-    if (password.length < 6) {
-      setMessage('La contraseña debe tener al menos 6 caracteres');
+    
+    // Importar la función de validación
+    const { validarSeguridad } = await import('../supabase/autenticacion');
+    
+    // Validar seguridad de la contraseña
+    const validacionPassword = validarSeguridad(password);
+    if (!validacionPassword.esValida) {
+      setMessage(validacionPassword.errores.join('. '));
       setMessageType('error');
       return;
     }
+    
     if (password !== confirmPassword) {
       setMessage('Las contraseñas no coinciden');
       setMessageType('error');
@@ -233,7 +240,7 @@ const OlvidePassword = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input"
-                  placeholder="Tu nueva contraseña"
+                  placeholder="********"
                   required
                   disabled={isLoading}
                 />

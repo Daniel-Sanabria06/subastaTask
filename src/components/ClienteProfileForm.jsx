@@ -3,6 +3,8 @@ import {
   obtenerPerfilCliente, 
   crearOActualizarPerfilCliente 
 } from '../supabase/perfiles/cliente';
+import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+import PrivacyLabel from './PrivacyLabel';
 
 const ClienteProfileForm = ({ usuarioId, onPerfilGuardado }) => {
   const [profileData, setProfileData] = useState({
