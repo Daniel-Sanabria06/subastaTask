@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { getCurrentUser, logoutUser } from '../supabase/supabaseClient';
+import { obtenerUsuarioActual, cerrarSesion } from '../supabase/autenticacion';
 import '../styles/Header.css';
 import logo from '../assets/logo.png';
 
@@ -11,11 +11,29 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // --- NUEVO: Estado y lógica para el tema ---
+  const [theme, setTheme] = useState('light');
+
+  useEffect(() => {
+    // Cargar tema guardado en localStorage
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
+  // --- FIN NUEVO ---
+
   useEffect(() => {
     const checkUser = async () => {
       try {
         setLoading(true);
-        const { success, data } = await getCurrentUser();
+        const { success, data } = await obtenerUsuarioActual();
         if (success) {
           setUser(data);
         } else {
@@ -30,11 +48,11 @@ const Header = () => {
     };
 
     checkUser();
-  }, [location.pathname]); // Re-ejecutar cuando cambie la ruta
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
-      const { success } = await logoutUser();
+      const { success } = await cerrarSesion();
       if (success) {
         setUser(null);
         navigate('/login');
@@ -57,6 +75,16 @@ const Header = () => {
             <span className="logo-text">SubasTask</span>
           </Link>
         </div>
+
+        {/* --- NUEVO: Botón de cambio de tema --- */}
+        <button
+          onClick={toggleTheme}
+          className="theme-toggle-btn"
+          aria-label={`Cambiar a tema ${theme === 'light' ? 'oscuro' : 'claro'}`}
+        >
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
+        {/* --- FIN NUEVO --- */}
 
         <button className="menu-toggle" onClick={toggleMenu}>
           <span className="menu-icon"></span>
@@ -91,8 +119,28 @@ const Header = () => {
               <div className="loading-indicator">Cargando...</div>
             ) : user ? (
               <>
+                {user.profile.type === 'trabajador' ? (
+                  <Link 
+                    to="/trabajador/dashboard"
+                    state={{ targetTab: 'proyectos', jobsSubview: 'publicaciones' }}
+                    className="btn btn-dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Publicaciones
+                  </Link>
+                ) : (
+                  <Link 
+                    to="/cliente/dashboard"
+                    state={{ targetTab: 'publicaciones' }}
+                    className="btn btn-dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Mis Publicaciones
+                  </Link>
+                )}
                 <Link 
                   to={user.profile.type === 'cliente' ? '/cliente/dashboard' : '/trabajador/dashboard'} 
+                  state={user.profile.type === 'cliente' ? { targetTab: 'mi-perfil' } : { targetTab: 'perfil-profesional' }}
                   className="btn btn-dashboard"
                   onClick={() => setMenuOpen(false)}
                 >
