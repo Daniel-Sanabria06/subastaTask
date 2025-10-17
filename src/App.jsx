@@ -11,6 +11,8 @@ import LoginPage from './public_pages/LoginPage';
 import RegisterPage from './public_pages/RegisterPage';
 import ClienteDashboard from './private_pages/ClienteDashboard';
 import TrabajadorDashboard from './private_pages/TrabajadorDashboard';
+import PublicacionDetalle from './private_pages/PublicacionDetalle';
+import OfertaDetalle from './private_pages/OfertaDetalle';
 import ResetPasswordPage from './public_pages/OlvidePassword';
 import AdminPanel from './admin/AdminPanel';
 import ComoFunciona from './public_pages/ComoFunciona';
@@ -113,6 +115,22 @@ function App() {
               element={
                 <RoleRoute allow={["trabajador"]}>
                   <TrabajadorDashboard />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="/publicaciones/:idpublicacion" 
+              element={
+                <RoleRoute allow={["cliente", "trabajador", "administrador"]}>
+                  <PublicacionDetalle />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="/ofertas/:idoferta" 
+              element={
+                <RoleRoute allow={["cliente", "trabajador", "administrador"]}>
+                  <OfertaDetalle />
                 </RoleRoute>
               } 
             />

@@ -2,7 +2,7 @@
 // =============================================================================
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Importar funciones desde la nueva estructura modular
 import { 
@@ -16,6 +16,8 @@ import {
 } from '../supabase/perfiles';
 
 import ClienteProfileForm from '../components/ClienteProfileForm';
+import { listarPublicacionesCliente, crearPublicacion, CATEGORIAS_SERVICIO } from '../supabase/publicaciones.js';
+// Ofertas se visualizarán en la nueva página de detalle de publicación
 import '../styles/Dashboard.css';
 
 const ClienteDashboard = () => {
@@ -27,7 +29,7 @@ const ClienteDashboard = () => {
   const [datosUsuario, setDatosUsuario] = useState(null);
   
   // Estado para controlar la pestaña activa
-  const [pestañaActiva, setPestañaActiva] = useState('proyectos');
+  const [pestañaActiva, setPestañaActiva] = useState('publicaciones');
   
   // Estado para modo edición del perfil básico
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -38,6 +40,23 @@ const ClienteDashboard = () => {
   
   // Estado para mensajes de feedback al usuario
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
+
+  // Estado para publicaciones del cliente
+  const [pubLoading, setPubLoading] = useState(false);
+  const [pubSubview, setPubSubview] = useState('list'); // 'list' | 'create'
+  const [publicaciones, setPublicaciones] = useState([]);
+  // Las ofertas ahora se consultan en /publicaciones/:idpublicacion
+  const [pubForm, setPubForm] = useState({
+    titulo: '',
+    descripcion: '',
+    categoria: '',
+    categoria_otro: '',
+    ciudad: '',
+    precio_maximo: '',
+    activa: true
+  });
+  const [pubSaving, setPubSaving] = useState(false);
+  const [pubErrors, setPubErrors] = useState({});
   
   // Estado para datos del formulario de perfil básico
   const [datosFormulario, setDatosFormulario] = useState({
@@ -49,6 +68,7 @@ const ClienteDashboard = () => {
   });
 
   const navegar = useNavigate();
+  const location = useLocation();
 
   // ===========================================================================
   // FUNCIONES AUXILIARES
@@ -190,6 +210,47 @@ const ClienteDashboard = () => {
     verificarUsuario();
   }, [navegar]);
 
+  // Cargar publicaciones cuando la pestaña de publicaciones está activa
+  useEffect(() => {
+    const cargarPublicaciones = async () => {
+      if (pestañaActiva !== 'publicaciones') return;
+      try {
+        setPubLoading(true);
+        const { success, data, error } = await listarPublicacionesCliente();
+        if (!success) {
+          console.error('Error al listar publicaciones:', error);
+          setMensaje({ texto: 'No se pudieron cargar tus publicaciones', tipo: 'error' });
+          return;
+        }
+        setPublicaciones(data || []);
+      } finally {
+        setPubLoading(false);
+      }
+    };
+    cargarPublicaciones();
+  }, [pestañaActiva]);
+
+  /**
+   * EFECTO: AUTO-OCULTAR MENSAJES DE ÉXITO
+   * Cuando se muestra un snackbar de tipo éxito, se oculta automáticamente
+   * después de 3 segundos para mantener una experiencia minimalista.
+   */
+  useEffect(() => {
+    if (mensaje?.tipo === 'success' && mensaje.texto) {
+      const t = setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [mensaje]);
+
+  // Seleccionar pestaña según estado de navegación
+  useEffect(() => {
+    const st = location?.state;
+    if (st?.targetTab) {
+      setPestañaActiva(st.targetTab);
+      if (st.targetTab === 'publicaciones') setPubSubview('list');
+    }
+  }, [location]);
+
   // ===========================================================================
   // MANEJADORES DE EVENTOS
   // ===========================================================================
@@ -264,6 +325,80 @@ const ClienteDashboard = () => {
     }
   };
 
+  // ======================
+  // Publicaciones - Crear
+  // ======================
+  /**
+   * VALIDAR FORMULARIO DE PUBLICACIÓN
+   * - Verifica campos obligatorios (título, descripción, categoría, ciudad, precio)
+   * - Si la categoría es "OTRO", exige especificar "categoria_otro"
+   * - Asegura que el precio máximo sea un número positivo
+   */
+  const validarPubForm = () => {
+    const errs = {};
+    if (!pubForm.titulo?.trim()) errs.titulo = 'El título es obligatorio';
+    if (!pubForm.descripcion?.trim()) errs.descripcion = 'La descripción es obligatoria';
+    if (!pubForm.categoria) errs.categoria = 'Selecciona una categoría';
+    if (pubForm.categoria === 'OTRO' && (!pubForm.categoria_otro || pubForm.categoria_otro.trim().length < 3)) {
+      errs.categoria_otro = 'Especifica la categoría (mínimo 3 caracteres)';
+    }
+    if (!pubForm.ciudad?.trim()) errs.ciudad = 'La ciudad es obligatoria';
+    const precio = Number(pubForm.precio_maximo);
+    if (Number.isNaN(precio) || precio < 0) errs.precio_maximo = 'Precio máximo inválido';
+    setPubErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // Finalizar actualización de UI de publicaciones
+
+  /**
+   * ENVIAR PUBLICACIÓN
+   * - Ejecuta la validación previa
+   * - Inserta la publicación en Supabase con `activa=true`
+   * - Muestra snackbar de éxito y recarga el listado
+   */
+  const enviarPublicacion = async (e) => {
+    e.preventDefault();
+    setMensaje({ texto: '', tipo: '' });
+    const esValido = validarPubForm();
+    if (!esValido) {
+      setMensaje({ texto: 'Por favor completa todos los campos requeridos', tipo: 'error' });
+      return;
+    }
+    try {
+      setPubSaving(true);
+      const { success, data, error } = await crearPublicacion({
+        titulo: pubForm.titulo,
+        descripcion: pubForm.descripcion,
+        categoria: pubForm.categoria,
+        categoria_otro: pubForm.categoria === 'OTRO' ? pubForm.categoria_otro : null,
+        ciudad: pubForm.ciudad,
+        precio_maximo: pubForm.precio_maximo,
+        activa: true
+      });
+      if (!success) throw error || new Error('No se pudo crear la publicación');
+      setMensaje({ texto: 'Tu publicación fue creada con éxito', tipo: 'success' });
+      // Reset form
+      setPubForm({ titulo: '', descripcion: '', categoria: '', categoria_otro: '', ciudad: '', precio_maximo: '', activa: true });
+      setPubErrors({});
+      // Volver a lista y refrescar
+      setPubSubview('list');
+      const { data: recarga } = await listarPublicacionesCliente();
+      setPublicaciones(recarga || []);
+    } catch (err) {
+      console.error('Error al crear publicación:', err);
+      const msg = err?.message || 'Error al crear publicación';
+      // Mensaje específico cuando RLS impide insertar
+      if (/insufficient/.test(msg) || /violates/.test(msg)) {
+        setMensaje({ texto: 'Solo clientes pueden crear publicaciones', tipo: 'error' });
+      } else {
+        setMensaje({ texto: msg, tipo: 'error' });
+      }
+    } finally {
+      setPubSaving(false);
+    }
+  };
+
   // ===========================================================================
   // RENDERIZADO CONDICIONAL - ESTADOS DE CARGA
   // ===========================================================================
@@ -310,10 +445,10 @@ const ClienteDashboard = () => {
         <ul className="nav-tabs">
           <li>
             <button 
-              className={pestañaActiva === 'proyectos' ? 'active' : ''} 
-              onClick={() => setPestañaActiva('proyectos')}
+              className={pestañaActiva === 'publicaciones' ? 'active' : ''} 
+              onClick={() => setPestañaActiva('publicaciones')}
             >
-              📋 Mis Proyectos
+              📝 Mis Publicaciones
             </button>
           </li>
           <li>
@@ -355,17 +490,207 @@ const ClienteDashboard = () => {
         )}
         
         {/* ================================================================= */}
-        {/* PESTAÑA: MIS PROYECTOS */}
+        {/* PESTAÑA: MIS PUBLICACIONES */}
         {/* ================================================================= */}
-        {pestañaActiva === 'proyectos' && (
+        {pestañaActiva === 'publicaciones' && (
           <div className="tab-content animate-fade-in">
-            <h2 className="section-title">Mis Proyectos</h2>
-            <div className="empty-state">
-              <p>No tienes proyectos activos en este momento.</p>
-              <button className="btn btn-primary">
-                ➕ Crear Nuevo Proyecto
-              </button>
-            </div>
+            {/* Encabezado y acciones */}
+            {pubSubview === 'list' && (
+              <div className="section-header">
+                <h2 className="section-title">Mis Publicaciones</h2>
+                <button className="btn btn-primary" onClick={() => setPubSubview('create')}>
+                  ➕ Crear Publicación
+                </button>
+              </div>
+            )}
+
+            {/* LISTA DE PUBLICACIONES */}
+            {pubSubview === 'list' && (
+              <div>
+                {pubLoading ? (
+                  <div className="loading-container">
+                    <div className="spinner"></div>
+                    <p>Cargando tus publicaciones...</p>
+                  </div>
+                ) : (
+                  <>
+                    {publicaciones.length === 0 ? (
+                      <div className="empty-state">
+                        <p>Aún no has creado publicaciones.</p>
+                        <button className="btn btn-primary" onClick={() => setPubSubview('create')}>
+                          ➕ Crear tu primera publicación
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="items-grid">
+                        {publicaciones.map((pub) => (
+                          <div key={pub.id} className="item-card">
+                            <div className="item-card-header">
+                              <h3 className="item-title">{pub.titulo}</h3>
+                              <span className={`status-badge ${pub.activa ? 'status-active' : 'status-inactive'}`}>
+                                {pub.activa ? 'Activa' : 'Inactiva'}
+                              </span>
+                            </div>
+                            {/* Metadatos con etiquetas claras */}
+                            <div className="meta-row">
+                              <div className="meta-item">
+                                <span className="label">Categoría:</span>
+                                {pub.categoria === 'OTRO' ? `Otro (${pub.categoria_otro || ''})` : pub.categoria}
+                              </div>
+                              <div className="meta-item">
+                                <span className="label">Ciudad:</span>
+                                {pub.ciudad}
+                              </div>
+                              <div className="meta-item">
+                                <span className="label">Precio máximo:</span>
+                                $ {Number(pub.precio_maximo).toLocaleString('es-CO')} COP
+                              </div>
+                              <div className="meta-item">
+                                <span className="label">Estado:</span>
+                                {pub.activa ? 'Activa' : 'Inactiva'}
+                              </div>
+                            </div>
+                            <p className="item-desc">{pub.descripcion}</p>
+                            <div className="item-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <small>{new Date(pub.created_at).toLocaleString('es-CO')}</small>
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => navegar(`/publicaciones/${pub.id}`)}
+                              >
+                                Ver publicación
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* FORMULARIO DE CREACIÓN */}
+            {pubSubview === 'create' && (
+              <div className="form-section">
+                <div className="section-header">
+                  <h2 className="section-title">Crear Publicación</h2>
+                  <button className="btn btn-secondary" onClick={() => setPubSubview('list')}>
+                    ← Volver a la lista
+                  </button>
+                </div>
+                <form onSubmit={enviarPublicacion} className="profile-form">
+                  {/* Título */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pub-titulo">Título *</label>
+                    <input
+                      id="pub-titulo"
+                      type="text"
+                      className="form-control"
+                      value={pubForm.titulo}
+                      onChange={(e) => setPubForm({ ...pubForm, titulo: e.target.value })}
+                      required
+                      placeholder="Ej: Reparación de lavadora"
+                    />
+                    <small className="form-help">Usa un título claro y específico.</small>
+                    {pubErrors.titulo && <div className="form-error">{pubErrors.titulo}</div>}
+                  </div>
+
+                  {/* Descripción */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pub-descripcion">Descripción detallada *</label>
+                    <textarea
+                      id="pub-descripcion"
+                      className="form-control"
+                      rows={4}
+                      value={pubForm.descripcion}
+                      onChange={(e) => setPubForm({ ...pubForm, descripcion: e.target.value })}
+                      required
+                      placeholder="Describe claramente qué tipo de servicio necesitas, ubicación, horarios, y cualquier detalle relevante"
+                    />
+                    <small className="form-help">Ejemplo: "Necesito un técnico para reparar una lavadora Whirlpool que no centrifuga. Vivo en Cali, barrio San Fernando. Disponible en las tardes."</small>
+                    {pubErrors.descripcion && <div className="form-error">{pubErrors.descripcion}</div>}
+                  </div>
+
+                  {/* Categoría */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pub-categoria">Categoría *</label>
+                    <select
+                      id="pub-categoria"
+                      className="form-control"
+                      value={pubForm.categoria}
+                      onChange={(e) => setPubForm({ ...pubForm, categoria: e.target.value, categoria_otro: '' })}
+                      required
+                    >
+                      <option value="">Selecciona una categoría</option>
+                      {CATEGORIAS_SERVICIO.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <small className="form-help">Elige la categoría que mejor describe tu servicio.</small>
+                    {pubErrors.categoria && <div className="form-error">{pubErrors.categoria}</div>}
+                  </div>
+
+                  {/* Categoría Otro */}
+                  {pubForm.categoria === 'OTRO' && (
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="pub-categoria-otro">Especifica la categoría *</label>
+                      <input
+                        id="pub-categoria-otro"
+                        type="text"
+                        className="form-control"
+                        value={pubForm.categoria_otro}
+                        onChange={(e) => setPubForm({ ...pubForm, categoria_otro: e.target.value })}
+                        required
+                        placeholder="Ej: Instalación de paneles solares"
+                      />
+                      {pubErrors.categoria_otro && <div className="form-error">{pubErrors.categoria_otro}</div>}
+                    </div>
+                  )}
+
+                  {/* Ciudad */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pub-ciudad">Ciudad *</label>
+                    <input
+                      id="pub-ciudad"
+                      type="text"
+                      className="form-control"
+                      value={pubForm.ciudad}
+                      onChange={(e) => setPubForm({ ...pubForm, ciudad: e.target.value })}
+                      required
+                      placeholder="Ej: Cali"
+                    />
+                    {pubErrors.ciudad && <div className="form-error">{pubErrors.ciudad}</div>}
+                  </div>
+
+                  {/* Precio máximo */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pub-precio">Precio máximo (COP) *</label>
+                    <input
+                      id="pub-precio"
+                      type="number"
+                      min="0"
+                      className="form-control"
+                      value={pubForm.precio_maximo}
+                      onChange={(e) => setPubForm({ ...pubForm, precio_maximo: e.target.value })}
+                      required
+                      placeholder="Ej: 120000"
+                    />
+                    <small className="form-help">Ingresa el precio máximo que estás dispuesto a pagar.</small>
+                    {pubErrors.precio_maximo && <div className="form-error">{pubErrors.precio_maximo}</div>}
+                  </div>
+
+                  {/* Acciones */}
+                  <div className="form-actions">
+                    <button type="submit" className="btn btn-primary" disabled={pubSaving}>
+                      {pubSaving ? 'Publicando...' : 'Publicar'}
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setPubSubview('list')}>
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         )}
 
