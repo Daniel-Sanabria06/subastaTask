@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { obtenerUsuarioActual } from '../supabase/autenticacion.js';
 import { obtenerOfertaPorId, contarOfertasDelTrabajadorPorPublicacion, crearOferta } from '../supabase/ofertas.js';
 import '../styles/Dashboard.css';
+import { editarOferta, eliminarOferta } from '../supabase/ofertas.js';
+import '../styles/OfertaDetalle.css'; // 👈 IMPORTA EL NUEVO CSS AQUÍ
 
 const OfertaDetalle = () => {
   const { idoferta } = useParams();
@@ -17,6 +19,74 @@ const OfertaDetalle = () => {
   const [ofertaForm, setOfertaForm] = useState({ monto_oferta: '', mensaje: '' });
   const [ofertaSaving, setOfertaSaving] = useState(false);
   const [ultimaOfertaCreada, setUltimaOfertaCreada] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({ monto_oferta: '', mensaje: '' });
+  const [deleting, setDeleting] = useState(false);
+
+
+  const handleEditClick = () => {
+    setEditForm({
+      monto_oferta: oferta.monto_oferta.toString(),
+      mensaje: oferta.mensaje
+    });
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    try {
+      setOfertaSaving(true);
+      const { success, error } = await editarOferta(oferta.id, editForm);
+      if (!success) throw error || new Error('No se pudo guardar los cambios');
+
+      // Actualizar localmente
+      setOferta(prev => ({ ...prev, ...editForm, monto_oferta: Number(editForm.monto_oferta) }));
+      setEditMode(false);
+      setMensaje({ texto: 'Oferta actualizada correctamente', tipo: 'success' });
+    } catch (err) {
+      console.error('Error al editar oferta:', err);
+      setMensaje({ texto: err.message || 'Error al actualizar', tipo: 'error' });
+    } finally {
+      setOfertaSaving(false);
+    }
+  };
+
+
+
+  const handleDelete = async () => {
+    if (!window.confirm('¿Seguro que deseas eliminar esta oferta? Esta acción no se puede deshacer.')) return;
+
+    try {
+      setDeleting(true);
+      const { success, error } = await eliminarOferta(oferta.id);
+      if (!success) throw error || new Error('No se pudo eliminar la oferta');
+
+      setMensaje({ texto: 'Oferta eliminada', tipo: 'success' });
+      // Redirigir después de 2 segundos
+      setTimeout(() => navigate('/trabajador/dashboard', { state: { targetTab: 'proyectos', jobsSubview: 'mis-ofertas' } }), 2000);
+    } catch (err) {
+      console.error('Error al eliminar oferta:', err);
+      setMensaje({ texto: err.message || 'Error al eliminar', tipo: 'error' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   const toTitleCase = (nombre) => {
     if (!nombre) return '';
@@ -79,14 +149,38 @@ const OfertaDetalle = () => {
           <h2 className="section-title">Oferta: {pub?.titulo || 'Publicación'}</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-secondary" onClick={() => navigate(-1)}>← Volver</button>
+
+
+
+
             {usuario?.profile?.type === 'trabajador' && (
               <>
-                <button className="btn btn-primary" title="Editar oferta" onClick={() => { /* próximamente */ }}>
-                  ✏️ Editar oferta
-                </button>
+                {oferta.estado === 'pendiente' ? (
+                  <>
+                    <button
+                      className="btn btn-warning"
+                      onClick={handleEditClick}
+                      disabled={editMode}
+                    >
+                      ✏️ Editar oferta
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                    >
+                      {deleting ? 'Eliminando...' : '🗑️ Eliminar'}
+                    </button>
+                  </>
+                ) : (
+                  <span className="status-badge status-inactive">
+                    Oferta {oferta.estado}
+                  </span>
+                )}
+
                 <button
                   className="btn btn-success"
-                  title={cuentaOfertas >= 3 ? 'Has alcanzado el máximo de 3 ofertas' : 'Enviar otra propuesta'}
+                  title={cuentaOfertas >= 3 ? 'Máximo de 3 ofertas alcanzado' : 'Enviar otra propuesta'}
                   disabled={countLoading || cuentaOfertas >= 3}
                   onClick={() => setMostrarForm((v) => !v)}
                 >
@@ -94,8 +188,76 @@ const OfertaDetalle = () => {
                 </button>
               </>
             )}
+
+
+
           </div>
         </div>
+
+
+
+
+
+
+
+
+        {editMode && (
+          <div className="oferta-form-card animate-fade-in">
+            <h4>Editar oferta</h4>
+            <form onSubmit={handleSaveEdit}>
+              <div className="oferta-form-row">
+                <div className="oferta-form-group">
+                  <label className="oferta-form-label">Monto (COP)</label>
+                  <input
+                    type="number"
+                    className="oferta-form-control"
+                    value={editForm.monto_oferta}
+                    onChange={(e) => setEditForm({ ...editForm, monto_oferta: e.target.value })}
+                    required
+                    min="0"
+                  />
+                </div>
+                <div className="oferta-form-group">
+                  <label className="oferta-form-label">Mensaje</label>
+                  <textarea
+                    className="oferta-form-control"
+                    rows="4"
+                    value={editForm.mensaje}
+                    onChange={(e) => setEditForm({ ...editForm, mensaje: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="oferta-form-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setEditMode(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={ofertaSaving}
+                >
+                  {ofertaSaving ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+
+
+
+
+
+
+
+
+
+
 
         <div className="item-card">
           <div className="item-card-header">
@@ -205,7 +367,7 @@ const OfertaDetalle = () => {
           </form>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
