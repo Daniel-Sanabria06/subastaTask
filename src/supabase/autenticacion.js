@@ -2,6 +2,40 @@
 // =============================================================================
 
 import { supabase, esCorreoAdmin } from './cliente';
+import { camposPrivacidad } from './perfiles/camposPrivacidad';
+
+/**
+ * VALIDAR SEGURIDAD DE CONTRASEÑA
+ * Verifica que la contraseña cumpla con los requisitos mínimos de seguridad:
+ * - Al menos 8 caracteres
+ * - Al menos una letra mayúscula
+ * - Al menos un número
+ * - Al menos un carácter especial
+ */
+export const validarSeguridad = (password) => {
+  const errores = [];
+  
+  if (password.length < 8) {
+    errores.push('La contraseña debe tener al menos 8 caracteres');
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    errores.push('La contraseña debe incluir al menos una letra mayúscula');
+  }
+  
+  if (!/[0-9]/.test(password)) {
+    errores.push('La contraseña debe incluir al menos un número');
+  }
+  
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errores.push('La contraseña debe incluir al menos un carácter especial (!@#$%^&*()_+-=[]{};\':"\\|,.<>/?)');
+  }
+  
+  return {
+    esValida: errores.length === 0,
+    errores
+  };
+};
 
 /**
  * REGISTRAR UN NUEVO USUARIO EN EL SISTEMA
@@ -9,6 +43,15 @@ import { supabase, esCorreoAdmin } from './cliente';
 export const registrarUsuario = async (datosFormulario) => {
   try {
     console.log('👤 Iniciando registro de usuario...');
+    
+    // Validar seguridad de la contraseña
+    const validacionPassword = validarSeguridad(datosFormulario.password);
+    if (!validacionPassword.esValida) {
+      return { 
+        success: false, 
+        error: new Error(validacionPassword.errores.join('. '))
+      };
+    }
     
     // Determinar tabla según tipo de usuario
     const nombreTabla = datosFormulario.perfil === 'cliente' ? 'clientes' : 'trabajadores';

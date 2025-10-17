@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { 
   obtenerPerfilTrabajador, 
-  crearPerfilTrabajador 
-} from '../supabase/perfiles/trabajador';   
+  crearOActualizarPerfilTrabajador 
+} from '../supabase/perfiles/trabajador';
+import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+import PrivacyLabel from './PrivacyLabel';
 
-const TrabajadorProfileForm = () => {
+const TrabajadorProfileForm = ({ userData, onProfileUpdate }) => {
   const [profileData, setProfileData] = useState({
     nombre_perfil: '',
     servicios_ofrecidos: [],
@@ -35,21 +37,28 @@ const TrabajadorProfileForm = () => {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const result = await obtenerPerfilTrabajador();
+      const result = await obtenerPerfilTrabajador(userData?.user?.id);
       
       if (result.success && result.data) {
-        setProfileData({
-          nombre_perfil: result.data.nombre_perfil || '',
-          servicios_ofrecidos: result.data.servicios_ofrecidos || [],
-          experiencia_laboral: result.data.experiencia_laboral || '',
-          descripcion_personal: result.data.descripcion_personal || '',
-          tarifa_por_hora: result.data.tarifa_por_hora || '',
-          disponibilidad: result.data.disponibilidad || 'disponible'
-        });
-        setHasProfile(true);
+        const sp = result.data.specificProfile;
+        if (sp) {
+          setProfileData({
+            nombre_perfil: sp.nombre_perfil || '',
+            servicios_ofrecidos: sp.servicios_ofrecidos || [],
+            experiencia_laboral: sp.experiencia_laboral || '',
+            descripcion_personal: sp.descripcion_personal || '',
+            tarifa_por_hora: sp.tarifa_por_hora || '',
+            disponibilidad: sp.disponibilidad || 'disponible'
+          });
+          setHasProfile(true);
+          setEditMode(false);
+        } else {
+          setHasProfile(false);
+          setEditMode(true); // Si no tiene perfil, activar modo edición
+        }
       } else {
         setHasProfile(false);
-        setEditMode(true); // Si no tiene perfil, activar modo edición
+        setEditMode(true);
       }
     } catch (error) {
       console.error('Error al cargar perfil:', error);
@@ -121,7 +130,7 @@ const TrabajadorProfileForm = () => {
         return;
       }
 
-      const result = await crearPerfilTrabajador(profileData);
+      const result = await crearOActualizarPerfilTrabajador(profileData);
 
       if (result.success) {
         setMessage({ 
@@ -130,8 +139,11 @@ const TrabajadorProfileForm = () => {
         });
         setEditMode(false);
         setHasProfile(true);
-        // Recargar el perfil para mostrar los datos actualizados
-        await loadProfile();
+        // Recargar el perfil y actualizar datos en el padre
+        const refreshed = await obtenerPerfilTrabajador(userData?.user?.id);
+        if (refreshed.success && refreshed.data) {
+          onProfileUpdate && onProfileUpdate(refreshed.data);
+        }
       } else {
         setMessage({ 
           text: `Error al guardar el perfil: ${result.error?.message || 'Error desconocido'}`, 
@@ -174,7 +186,7 @@ const TrabajadorProfileForm = () => {
         <form onSubmit={handleSubmit} className="profile-form">
           <div className="form-group">
             <label htmlFor="nombre_perfil" className="form-label">
-              Nombre del Perfil Profesional *
+              Nombre del Perfil Profesional * <PrivacyLabel isPrivate={false} />
             </label>
             <input
               type="text"

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { 
   obtenerPerfilCliente, 
-  crearPerfilCliente 
+  crearOActualizarPerfilCliente 
 } from '../supabase/perfiles/cliente';
+import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+import PrivacyLabel from './PrivacyLabel';
 
-const ClienteProfileForm = () => {
+const ClienteProfileForm = ({ usuarioId, onPerfilGuardado }) => {
   const [profileData, setProfileData] = useState({
     nombre_perfil: '',
     preferencias_servicios: [],
@@ -29,12 +31,18 @@ const ClienteProfileForm = () => {
 
   useEffect(() => {
     loadProfile();
-  }, []);
+  }, [usuarioId]);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const result = await obtenerPerfilCliente();
+      if (!usuarioId) {
+        setHasProfile(false);
+        setEditMode(true);
+        setLoading(false);
+        return;
+      }
+      const result = await obtenerPerfilCliente(usuarioId);
       
       if (result.success && result.data) {
         setProfileData({
@@ -113,7 +121,7 @@ const ClienteProfileForm = () => {
         return;
       }
 
-      const result = await crearPerfilCliente (profileData);
+      const result = await crearOActualizarPerfilCliente(profileData);
 
       if (result.success) {
         setMessage({ 
@@ -124,6 +132,12 @@ const ClienteProfileForm = () => {
         setHasProfile(true);
         // Recargar el perfil para mostrar los datos actualizados
         await loadProfile();
+        // Notificar al padre si se provee callback
+        if (typeof onPerfilGuardado === 'function') {
+          try {
+            onPerfilGuardado(result.data);
+          } catch {}
+        }
       } else {
         setMessage({ 
           text: `Error al guardar el perfil: ${result.error?.message || 'Error desconocido'}`, 

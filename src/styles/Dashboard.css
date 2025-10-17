@@ -171,6 +171,29 @@
   border: 1px solid var(--border-color);
 }
 
+/* === Snackbar de estado === */
+.snackbar {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(10, 37, 64, 0.2);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  font-weight: 600;
+}
+.snackbar.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.snackbar-success { background-color: #28a745; }
+.snackbar-error { background-color: #dc3545; }
+.snackbar-info { background-color: #17a2b8; }
+
 .tab-content {
   animation: slideInUp 0.3s ease-out;
 }
@@ -429,6 +452,102 @@
   background-color: rgba(239, 83, 80, 0.1);
   color: #ef9a9a;
   border-color: #d32f2f;
+}
+
+/* === Publicaciones - lista minimalista === */
+.items-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .items-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.item-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(10, 37, 64, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.item-card:hover {
+  box-shadow: 0 8px 20px rgba(10, 37, 64, 0.12);
+  transform: translateY(-2px);
+}
+
+.item-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.item-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meta-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+@media (min-width: 640px) {
+  .meta-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.meta-item {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.meta-item .label {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.item-desc {
+  margin-top: 8px;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.item-footer {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.status-badge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-color);
+}
+
+.status-active {
+  background: #e7f7ee;
+  color: #1b7f3b;
+  border-color: #c8ebd3;
+}
+
+.status-inactive {
+  background: #fbebeb;
+  color: #9c2f2f;
+  border-color: #f3d0d0;
 }
 
 /* === Responsive === */
