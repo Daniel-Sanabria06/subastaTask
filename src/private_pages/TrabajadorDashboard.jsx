@@ -2,15 +2,34 @@ import { useEffect, useState } from 'react';
 import { obtenerPerfilTrabajador } from '../supabase/perfiles/trabajador';
 import { actualizarPerfilUsuario } from '../supabase/autenticacion';
 import { supabase } from '../supabase/cliente';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TrabajadorProfileForm from '../components/TrabajadorProfileForm';
 import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
 import PrivacyLabel from '../components/PrivacyLabel';
+import { CATEGORIAS_SERVICIO, listarPublicacionesActivas } from '../supabase/publicaciones.js';
+import { crearOferta, listarOfertasTrabajador } from '../supabase/ofertas.js';
 import '../styles/Dashboard.css';
 
 const TrabajadorDashboard = () => {
   const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState('proyectos');
+  // Subvista dentro de "Mis Trabajos": publicaciones vs mis ofertas
+  const [jobsSubview, setJobsSubview] = useState('publicaciones'); // 'publicaciones' | 'mis-ofertas'
+  
+  // Estado para publicaciones activas (para trabajadores)
+  const [pubsLoading, setPubsLoading] = useState(false);
+  const [publicaciones, setPublicaciones] = useState([]);
+  const [filtros, setFiltros] = useState({ categoria: '', ciudadTexto: '', q: '' });
+
+  // Estado para oferta en curso
+  const [ofertaTarget, setOfertaTarget] = useState(null); // publicación seleccionada para ofertar
+  const [ofertaForm, setOfertaForm] = useState({ monto_oferta: '', mensaje: '' });
+  const [ofertaSaving, setOfertaSaving] = useState(false);
+  const [ultimaOfertaCreada, setUltimaOfertaCreada] = useState(null);
+
+  // Estado para mis ofertas (hechas por el trabajador)
+  const [misOfertasLoading, setMisOfertasLoading] = useState(false);
+  const [misOfertas, setMisOfertas] = useState([]);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -34,6 +53,7 @@ const TrabajadorDashboard = () => {
     disponibilidad: 'disponible'
   });
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Función para generar avatar único basado en el ID del usuario
   const generateUserAvatar = (userId) => {
@@ -158,6 +178,68 @@ const TrabajadorDashboard = () => {
 
     checkUser();
   }, [navigate]);
+
+  useEffect(() => {
+    const st = location?.state;
+    if (st) {
+      if (st.targetTab) setActiveTab(st.targetTab);
+      if (st.jobsSubview) setJobsSubview(st.jobsSubview);
+    }
+  }, [location]);
+
+  /**
+   * EFECTO: AUTO-OCULTAR SNACKBAR DE ÉXITO
+   */
+  useEffect(() => {
+    if (message?.type === 'success' && message.text) {
+      const t = setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [message]);
+
+  /**
+   * EFECTO: CARGAR PUBLICACIONES ACTIVAS PARA TRABAJADORES CUANDO SE ABRE LA SUBVISTA
+   */
+  useEffect(() => {
+    const cargar = async () => {
+      if (activeTab !== 'proyectos' || jobsSubview !== 'publicaciones') return;
+      try {
+        setPubsLoading(true);
+        const { success, data, error } = await listarPublicacionesActivas(filtros);
+        if (!success) {
+          console.error('Error al listar publicaciones:', error);
+          setMessage({ text: 'No se pudieron cargar publicaciones', type: 'error' });
+          return;
+        }
+        setPublicaciones(data || []);
+      } finally {
+        setPubsLoading(false);
+      }
+    };
+    cargar();
+  }, [activeTab, jobsSubview, filtros]);
+
+  /**
+   * EFECTO: CARGAR MIS OFERTAS CUANDO SE ABRE LA SUBVISTA
+   */
+  useEffect(() => {
+    const cargar = async () => {
+      if (activeTab !== 'proyectos' || jobsSubview !== 'mis-ofertas') return;
+      try {
+        setMisOfertasLoading(true);
+        const { success, data, error } = await listarOfertasTrabajador();
+        if (!success) {
+          console.error('Error al listar mis ofertas:', error);
+          setMessage({ text: 'No se pudieron cargar tus ofertas', type: 'error' });
+          return;
+        }
+        setMisOfertas(data || []);
+      } finally {
+        setMisOfertasLoading(false);
+      }
+    };
+    cargar();
+  }, [activeTab, jobsSubview]);
 const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -276,14 +358,241 @@ const handleChange = (e) => {
         )}
 
         {activeTab === 'proyectos' && (
-          <div className="tab-content">
-            <h3>Mis Trabajos</h3>
-            <div className="projects-grid">
-              <div className="project-card">
-                <h4>No hay trabajos disponibles</h4>
-                <p>Completa tu perfil profesional para empezar a recibir ofertas de trabajo.</p>
+          <div className="tab-content animate-fade-in">
+            <div className="section-header">
+              <h3 className="section-title">Mis Trabajos</h3>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className={`btn ${jobsSubview === 'publicaciones' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setJobsSubview('publicaciones')}
+                >
+                  Publicaciones
+                </button>
+                <button
+                  className={`btn ${jobsSubview === 'mis-ofertas' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setJobsSubview('mis-ofertas')}
+                >
+                  Mis Ofertas
+                </button>
               </div>
             </div>
+
+            {/* SUBVISTA: PUBLICACIONES ACTIVAS */}
+            {jobsSubview === 'publicaciones' && (
+              <div>
+                {/* Filtros avanzados minimalistas */}
+                <div className="profile-form" style={{ marginBottom: 12 }}>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Categoría</label>
+                      <select
+                        className="form-control"
+                        value={filtros.categoria}
+                        onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
+                      >
+                        <option value="">Todas</option>
+                        {CATEGORIAS_SERVICIO.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Ciudad (por letras)</label>
+                      <input
+                        className="form-control"
+                        type="text"
+                        placeholder="Ej: Cali"
+                        value={filtros.ciudadTexto}
+                        onChange={(e) => setFiltros({ ...filtros, ciudadTexto: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Buscar (título/descripcion)</label>
+                      <input
+                        className="form-control"
+                        type="text"
+                        placeholder="Ej: reparación, instalación, pintura"
+                        value={filtros.q}
+                        onChange={(e) => setFiltros({ ...filtros, q: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista minimalista de publicaciones */}
+                {pubsLoading ? (
+                  <div className="loading-container">
+                    <div className="spinner"></div>
+                    <p>Cargando publicaciones...</p>
+                  </div>
+                ) : (
+                  <div className="items-grid">
+                    {publicaciones.length === 0 ? (
+                      <div className="empty-state"><p>No hay publicaciones para mostrar</p></div>
+                    ) : (
+                      publicaciones.map((p) => (
+                        <div key={p.id} className="item-card">
+                          <div className="item-card-header">
+                            <h4 className="item-title">{p.titulo}</h4>
+                            <span className={`status-badge ${p.activa ? 'status-active' : 'status-inactive'}`}>
+                              {p.activa ? 'Activa' : 'Inactiva'}
+                            </span>
+                          </div>
+                          <div className="meta-row">
+                            <div className="meta-item"><span className="label">Categoría:</span> {p.categoria === 'OTRO' ? `Otro (${p.categoria_otro || ''})` : p.categoria}</div>
+                            <div className="meta-item"><span className="label">Ciudad:</span> {p.ciudad}</div>
+                            <div className="meta-item"><span className="label">Precio máximo:</span> $ {Number(p.precio_maximo).toLocaleString('es-CO')} COP</div>
+                            <div className="meta-item"><span className="label">Fecha:</span> {new Date(p.created_at).toLocaleString('es-CO')}</div>
+                          </div>
+                          <p className="item-desc">{p.descripcion}</p>
+                          <div className="form-actions" style={{ marginTop: 10 }}>
+                            {ofertaTarget?.id === p.id ? (
+                              <button className="btn btn-secondary" onClick={() => { setOfertaTarget(null); setOfertaForm({ monto_oferta: '', mensaje: '' }); }}>
+                                Cancelar
+                              </button>
+                            ) : (
+                              <button className="btn btn-primary" onClick={() => setOfertaTarget(p)}>
+                                Hacer Oferta
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Formulario inline para hacer oferta */}
+                          {ofertaTarget?.id === p.id && (
+                            <form
+                              onSubmit={async (e) => {
+                                e.preventDefault();
+                                setMessage({ text: '', type: '' });
+                                try {
+                                  setOfertaSaving(true);
+                                  const { success, data, error } = await crearOferta({
+                                    publicacion_id: p.id,
+                                    cliente_id: p.cliente_id,
+                                    monto_oferta: ofertaForm.monto_oferta,
+                                    mensaje: ofertaForm.mensaje
+                                  });
+                                  if (!success) throw error || new Error('No se pudo crear la oferta');
+                                  setMessage({ text: 'Oferta enviada correctamente', type: 'success' });
+                                  setUltimaOfertaCreada({ id: data.id, pubId: p.id });
+                                  setOfertaTarget(null);
+                                  setOfertaForm({ monto_oferta: '', mensaje: '' });
+                                  // Recargar mis ofertas si está abierta
+                                  if (jobsSubview === 'mis-ofertas') {
+                                    const { data: recarga } = await listarOfertasTrabajador();
+                                    setMisOfertas(recarga || []);
+                                  }
+                                } catch (err) {
+                                  console.error('Error al enviar oferta:', err);
+                                  const msg = err?.message || 'Error al enviar oferta';
+                                  setMessage({ text: msg, type: 'error' });
+                                } finally {
+                                  setOfertaSaving(false);
+                                }
+                              }}
+                              className="profile-form"
+                              style={{ marginTop: 12 }}
+                            >
+                              <div className="form-row">
+                                <div className="form-group">
+                                  <label className="form-label">Monto de oferta (COP) *</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="form-control"
+                                    value={ofertaForm.monto_oferta}
+                                    onChange={(e) => setOfertaForm({ ...ofertaForm, monto_oferta: e.target.value })}
+                                    required
+                                    placeholder="Ej: 90000"
+                                  />
+                                </div>
+                                <div className="form-group full-width">
+                                  <label className="form-label">Mensaje *</label>
+                                  <textarea
+                                    rows={3}
+                                    className="form-control"
+                                    value={ofertaForm.mensaje}
+                                    onChange={(e) => setOfertaForm({ ...ofertaForm, mensaje: e.target.value })}
+                                    required
+                                    placeholder="Explica brevemente tu propuesta, disponibilidad y experiencia relacionada"
+                                  />
+                          </div>
+                          {ultimaOfertaCreada?.pubId === p.id && (
+                            <div className="item-footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8 }}>
+                              <button className="btn btn-secondary" onClick={() => navigate(`/ofertas/${ultimaOfertaCreada.id}`)}>Ver oferta</button>
+                            </div>
+                          )}
+                        </div>
+                              <div className="form-actions">
+                                <button type="submit" className="btn btn-primary" disabled={ofertaSaving}>
+                                  {ofertaSaving ? 'Enviando...' : 'Enviar Oferta'}
+                                </button>
+                                <button type="button" className="btn btn-secondary" onClick={() => { setOfertaTarget(null); setOfertaForm({ monto_oferta: '', mensaje: '' }); }}>
+                                  Cancelar
+                                </button>
+                              </div>
+                            </form>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SUBVISTA: MIS OFERTAS */}
+            {jobsSubview === 'mis-ofertas' && (
+              <div>
+                {misOfertasLoading ? (
+                  <div className="loading-container">
+                    <div className="spinner"></div>
+                    <p>Cargando tus ofertas...</p>
+                  </div>
+                ) : (
+                  <div className="items-grid">
+                    {misOfertas.length === 0 ? (
+                      <div className="empty-state"><p>Aún no has enviado ofertas</p></div>
+                    ) : (
+                      misOfertas.map((o) => (
+                        <div key={o.id} className="item-card">
+                          <div className="item-card-header">
+                            <h4 className="item-title">Oferta a: {o.publicacion?.titulo || o.publicacion_id}</h4>
+                            <span className={`status-badge ${o.estado === 'pendiente' ? 'status-active' : 'status-inactive'}`}>
+                              {o.estado}
+                            </span>
+                          </div>
+                          <div className="meta-row">
+                            <div className="meta-item"><span className="label">Monto:</span> $ {Number(o.monto_oferta).toLocaleString('es-CO')} COP</div>
+                            {o.publicacion && (
+                              <>
+                                <div className="meta-item"><span className="label">Categoría:</span> {o.publicacion.categoria === 'OTRO' ? `Otro (${o.publicacion.categoria_otro || ''})` : o.publicacion.categoria}</div>
+                                <div className="meta-item"><span className="label">Ciudad:</span> {o.publicacion.ciudad}</div>
+                                <div className="meta-item"><span className="label">Precio máximo:</span> $ {Number(o.publicacion.precio_maximo).toLocaleString('es-CO')} COP</div>
+                              </>
+                            )}
+                            <div className="meta-item"><span className="label">Fecha:</span> {new Date(o.created_at).toLocaleString('es-CO')}</div>
+                          </div>
+                          <p className="item-desc">{o.mensaje}</p>
+                          <div className="item-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <small>{new Date(o.updated_at || o.created_at).toLocaleString('es-CO')}</small>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button className="btn btn-primary" onClick={() => navigate(`/ofertas/${o.id}`)}>
+                                Ver oferta
+                              </button>
+                              {o.publicacion?.id && (
+                                <button className="btn btn-secondary" onClick={() => navigate(`/publicaciones/${o.publicacion.id}`)}>
+                                  Ver publicación
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -119,8 +119,28 @@ const Header = () => {
               <div className="loading-indicator">Cargando...</div>
             ) : user ? (
               <>
+                {user.profile.type === 'trabajador' ? (
+                  <Link 
+                    to="/trabajador/dashboard"
+                    state={{ targetTab: 'proyectos', jobsSubview: 'publicaciones' }}
+                    className="btn btn-dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Publicaciones
+                  </Link>
+                ) : (
+                  <Link 
+                    to="/cliente/dashboard"
+                    state={{ targetTab: 'publicaciones' }}
+                    className="btn btn-dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Mis Publicaciones
+                  </Link>
+                )}
                 <Link 
                   to={user.profile.type === 'cliente' ? '/cliente/dashboard' : '/trabajador/dashboard'} 
+                  state={user.profile.type === 'cliente' ? { targetTab: 'mi-perfil' } : { targetTab: 'perfil-profesional' }}
                   className="btn btn-dashboard"
                   onClick={() => setMenuOpen(false)}
                 >
