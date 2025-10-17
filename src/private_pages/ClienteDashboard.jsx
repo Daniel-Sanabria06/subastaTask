@@ -2,7 +2,7 @@
 // =============================================================================
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Importar funciones desde la nueva estructura modular
 import { 
@@ -68,6 +68,7 @@ const ClienteDashboard = () => {
   });
 
   const navegar = useNavigate();
+  const location = useLocation();
 
   // ===========================================================================
   // FUNCIONES AUXILIARES
@@ -240,6 +241,15 @@ const ClienteDashboard = () => {
       return () => clearTimeout(t);
     }
   }, [mensaje]);
+
+  // Seleccionar pestaña según estado de navegación
+  useEffect(() => {
+    const st = location?.state;
+    if (st?.targetTab) {
+      setPestañaActiva(st.targetTab);
+      if (st.targetTab === 'publicaciones') setPubSubview('list');
+    }
+  }, [location]);
 
   // ===========================================================================
   // MANEJADORES DE EVENTOS

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { obtenerPerfilTrabajador } from '../supabase/perfiles/trabajador';
 import { actualizarPerfilUsuario } from '../supabase/autenticacion';
 import { supabase } from '../supabase/cliente';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TrabajadorProfileForm from '../components/TrabajadorProfileForm';
 import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
 import PrivacyLabel from '../components/PrivacyLabel';
@@ -53,6 +53,7 @@ const TrabajadorDashboard = () => {
     disponibilidad: 'disponible'
   });
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Función para generar avatar único basado en el ID del usuario
   const generateUserAvatar = (userId) => {
@@ -177,6 +178,14 @@ const TrabajadorDashboard = () => {
 
     checkUser();
   }, [navigate]);
+
+  useEffect(() => {
+    const st = location?.state;
+    if (st) {
+      if (st.targetTab) setActiveTab(st.targetTab);
+      if (st.jobsSubview) setJobsSubview(st.jobsSubview);
+    }
+  }, [location]);
 
   /**
    * EFECTO: AUTO-OCULTAR SNACKBAR DE ÉXITO
