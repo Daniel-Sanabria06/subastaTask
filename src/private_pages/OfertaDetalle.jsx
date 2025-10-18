@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState} from 'react'; // 👈 Aquí se añade useMemo
 import { useParams, useNavigate } from 'react-router-dom';
 import { obtenerUsuarioActual } from '../supabase/autenticacion.js';
 import { obtenerOfertaPorId, contarOfertasDelTrabajadorPorPublicacion, crearOferta } from '../supabase/ofertas.js';
 import '../styles/Dashboard.css';
 import { editarOferta, eliminarOferta } from '../supabase/ofertas.js';
 import '../styles/OfertaDetalle.css'; // 👈 IMPORTA EL NUEVO CSS AQUÍ
+
+
 
 const OfertaDetalle = () => {
   const { idoferta } = useParams();
@@ -43,6 +45,21 @@ const OfertaDetalle = () => {
       setOferta(prev => ({ ...prev, ...editForm, monto_oferta: Number(editForm.monto_oferta) }));
       setEditMode(false);
       setMensaje({ texto: 'Oferta actualizada correctamente', tipo: 'success' });
+      
+      // Recargar los datos de la oferta desde el servidor
+      setTimeout(async () => {
+        setCargando(true);
+        try {
+          const { success, data } = await obtenerOfertaPorId(oferta.id);
+          if (success && data) {
+            setOferta(data);
+          }
+        } catch (err) {
+          console.error('Error al recargar oferta:', err);
+        } finally {
+          setCargando(false);
+        }
+      }, 1000);
     } catch (err) {
       console.error('Error al editar oferta:', err);
       setMensaje({ texto: err.message || 'Error al actualizar', tipo: 'error' });
