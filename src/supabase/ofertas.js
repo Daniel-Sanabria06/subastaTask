@@ -139,6 +139,29 @@ export const obtenerOfertaPorId = async (idoferta) => {
   }
 };
 
+// NUEVO: Verificar si una publicación tiene oferta aceptada (cliente propietario)
+export const existeOfertaAceptadaParaPublicacion = async (publicacion_id) => {
+  try {
+    const usuario = await obtenerUsuarioActual();
+    if (!usuario.success) throw new Error('Usuario no autenticado');
+    if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden verificar ofertas aceptadas de sus publicaciones');
+    if (!publicacion_id) throw new Error('publicacion_id es requerido');
+
+    const { count, error } = await supabase
+      .from('ofertas')
+      .select('id', { count: 'exact', head: true })
+      .eq('cliente_id', usuario.data.user.id)
+      .eq('publicacion_id', publicacion_id)
+      .eq('estado', 'aceptada');
+
+    if (error) throw error;
+    return { success: true, data: (count ?? 0) > 0, error: null };
+  } catch (error) {
+    console.error('Error al verificar oferta aceptada por publicación:', error);
+    return { success: false, data: null, error };
+  }
+};
+
 /**
  * CONTAR OFERTAS DEL TRABAJADOR POR PUBLICACIÓN
  */
