@@ -58,7 +58,7 @@ const TrabajadorDashboard = () => {
   // Función para generar avatar único basado en el ID del usuario
   const generateUserAvatar = (userId) => {
     const seed = userId ? userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
-    return `https://picsum.photos/seed/${seed}/100/100`;
+    return `https://picsum.photos/seed/  ${seed}/100/100`;
   };
 
   // Obtener avatar desde metadata si existe; en caso contrario, usar uno generado
@@ -74,7 +74,7 @@ const TrabajadorDashboard = () => {
       return url;
     }
     const seed = user?.id ? user.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
-    return `https://picsum.photos/seed/${seed}/100/100`;
+    return `https://picsum.photos/seed/  ${seed}/100/100`;
   };
 
   // Subir una nueva imagen de avatar al bucket 'avatars' y guardar URL pública en metadata
@@ -746,4 +746,4 @@ const handleChange = (e) => {
   );
 };
 
-export default TrabajadorDashboard;
+export default TrabajadorDashboard;  

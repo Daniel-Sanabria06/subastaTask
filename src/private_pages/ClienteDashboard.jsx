@@ -16,8 +16,11 @@ import {
 } from '../supabase/perfiles';
 
 import ClienteProfileForm from '../components/ClienteProfileForm';
+// Reajuste de imports: usamos solo creación/listado aquí. La edición/eliminación se delega a componentes externos.
 import { listarPublicacionesCliente, crearPublicacion, CATEGORIAS_SERVICIO } from '../supabase/publicaciones.js';
-// Ofertas se visualizarán en la nueva página de detalle de publicación
+// Nuevos componentes extraídos a otra carpeta para mantener el dashboard limpio
+import EditorPublicacion from '../caracteristicas/publicaciones/EditorPublicacion.jsx';
+import EliminarPublicacionButton from '../caracteristicas/publicaciones/EliminarPublicacionButton.jsx';
 import '../styles/Dashboard.css';
 
 const ClienteDashboard = () => {
@@ -57,6 +60,10 @@ const ClienteDashboard = () => {
   });
   const [pubSaving, setPubSaving] = useState(false);
   const [pubErrors, setPubErrors] = useState({});
+  // Estado de edición: publicación seleccionada para editar (nuevo, fuera del dashboard)
+  const [editingPub, setEditingPub] = useState(null);
+  // Estado pubEditId removido tras migración (se usa editingPub)
+  // (eliminado tras migración a componentes externos)
   
   // Estado para datos del formulario de perfil básico
   const [datosFormulario, setDatosFormulario] = useState({
@@ -349,55 +356,53 @@ const ClienteDashboard = () => {
     return Object.keys(errs).length === 0;
   };
 
-  // Finalizar actualización de UI de publicaciones
+  /* Edición migrada: usar estado editingPub y componente EditorPublicacion */
 
-  /**
-   * ENVIAR PUBLICACIÓN
-   * - Ejecuta la validación previa
-   * - Inserta la publicación en Supabase con `activa=true`
-   * - Muestra snackbar de éxito y recarga el listado
-   */
+  /* Guardar edición migrado: la lógica vive en EditorPublicacion */
+
+  /* Eliminación migrada: usar EliminarPublicacionButton con callbacks */
+
+  // Enviar creación de publicación
   const enviarPublicacion = async (e) => {
     e.preventDefault();
-    setMensaje({ texto: '', tipo: '' });
-    const esValido = validarPubForm();
-    if (!esValido) {
-      setMensaje({ texto: 'Por favor completa todos los campos requeridos', tipo: 'error' });
-      return;
-    }
     try {
+      if (!validarPubForm()) {
+        setMensaje({ texto: 'Revisa los campos del formulario', tipo: 'error' });
+        return;
+      }
       setPubSaving(true);
-      const { success, data, error } = await crearPublicacion({
-        titulo: pubForm.titulo,
-        descripcion: pubForm.descripcion,
-        categoria: pubForm.categoria,
-        categoria_otro: pubForm.categoria === 'OTRO' ? pubForm.categoria_otro : null,
-        ciudad: pubForm.ciudad,
-        precio_maximo: pubForm.precio_maximo,
+      const { success, data, error } = await crearPublicacion(pubForm);
+      if (!success) {
+        setMensaje({ texto: error?.message || 'No se pudo crear la publicación', tipo: 'error' });
+        return;
+      }
+      setMensaje({ texto: 'Publicación creada correctamente', tipo: 'success' });
+      // Reiniciar formulario
+      setPubForm({
+        titulo: '',
+        descripcion: '',
+        categoria: '',
+        categoria_otro: '',
+        ciudad: '',
+        precio_maximo: '',
         activa: true
       });
-      if (!success) throw error || new Error('No se pudo crear la publicación');
-      setMensaje({ texto: 'Tu publicación fue creada con éxito', tipo: 'success' });
-      // Reset form
-      setPubForm({ titulo: '', descripcion: '', categoria: '', categoria_otro: '', ciudad: '', precio_maximo: '', activa: true });
-      setPubErrors({});
-      // Volver a lista y refrescar
-      setPubSubview('list');
-      const { data: recarga } = await listarPublicacionesCliente();
-      setPublicaciones(recarga || []);
-    } catch (err) {
-      console.error('Error al crear publicación:', err);
-      const msg = err?.message || 'Error al crear publicación';
-      // Mensaje específico cuando RLS impide insertar
-      if (/insufficient/.test(msg) || /violates/.test(msg)) {
-        setMensaje({ texto: 'Solo clientes pueden crear publicaciones', tipo: 'error' });
+      // Recargar listado
+      const { success: okList, data: recarga, error: errList } = await listarPublicacionesCliente();
+      if (okList) {
+        setPublicaciones(recarga || []);
       } else {
-        setMensaje({ texto: msg, tipo: 'error' });
+        console.error('Error recargando publicaciones tras creación:', errList);
       }
+      setPubSubview('list');
+    } catch (err) {
+      console.error('Error al enviar publicación:', err);
+      setMensaje({ texto: 'Ocurrió un error al crear la publicación', tipo: 'error' });
     } finally {
       setPubSaving(false);
     }
   };
+
 
   // ===========================================================================
   // RENDERIZADO CONDICIONAL - ESTADOS DE CARGA
@@ -553,12 +558,28 @@ const ClienteDashboard = () => {
                             <p className="item-desc">{pub.descripcion}</p>
                             <div className="item-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <small>{new Date(pub.created_at).toLocaleString('es-CO')}</small>
-                              <button
-                                className="btn btn-secondary"
-                                onClick={() => navegar(`/publicaciones/${pub.id}`)}
-                              >
-                                Ver publicación
-                              </button>
+                              <div className="item-actions" style={{ display: 'flex', gap: 8 }}>
+                                {/* Editar ahora solo abre el editor extraído */}
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => { setEditingPub(pub); setPubSubview('edit'); }}
+                                >
+                                  Editar
+                                </button>
+                                {/* Eliminar delegado al componente externo con callbacks */}
+                                <EliminarPublicacionButton
+                                  publicacion={pub}
+                                  onDeleted={() => setPublicaciones(prev => prev.filter(p => p.id !== pub.id))}
+                                  onSuccess={(msg) => setMensaje({ texto: msg, tipo: 'success' })}
+                                  onError={(msg) => setMensaje({ texto: msg, tipo: 'error' })}
+                                />
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => navegar(`/publicaciones/${pub.id}`)}
+                                >
+                                  Ver publicación
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -618,19 +639,18 @@ const ClienteDashboard = () => {
                       id="pub-categoria"
                       className="form-control"
                       value={pubForm.categoria}
-                      onChange={(e) => setPubForm({ ...pubForm, categoria: e.target.value, categoria_otro: '' })}
+                      onChange={(e) => setPubForm({ ...pubForm, categoria: e.target.value })}
                       required
                     >
                       <option value="">Selecciona una categoría</option>
-                      {CATEGORIAS_SERVICIO.map((cat) => (
+                      {CATEGORIAS_SERVICIO.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
-                    <small className="form-help">Elige la categoría que mejor describe tu servicio.</small>
                     {pubErrors.categoria && <div className="form-error">{pubErrors.categoria}</div>}
                   </div>
 
-                  {/* Categoría Otro */}
+                  {/* Categoría otro */}
                   {pubForm.categoria === 'OTRO' && (
                     <div className="form-group">
                       <label className="form-label" htmlFor="pub-categoria-otro">Especifica la categoría *</label>
@@ -640,8 +660,7 @@ const ClienteDashboard = () => {
                         className="form-control"
                         value={pubForm.categoria_otro}
                         onChange={(e) => setPubForm({ ...pubForm, categoria_otro: e.target.value })}
-                        required
-                        placeholder="Ej: Instalación de paneles solares"
+                        placeholder="Ej: Tapicería de autos"
                       />
                       {pubErrors.categoria_otro && <div className="form-error">{pubErrors.categoria_otro}</div>}
                     </div>
@@ -664,32 +683,44 @@ const ClienteDashboard = () => {
 
                   {/* Precio máximo */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pub-precio">Precio máximo (COP) *</label>
+                    <label className="form-label" htmlFor="pub-precio">Precio máximo *</label>
                     <input
                       id="pub-precio"
                       type="number"
-                      min="0"
                       className="form-control"
                       value={pubForm.precio_maximo}
                       onChange={(e) => setPubForm({ ...pubForm, precio_maximo: e.target.value })}
                       required
-                      placeholder="Ej: 120000"
+                      placeholder="Ej: 150000"
                     />
-                    <small className="form-help">Ingresa el precio máximo que estás dispuesto a pagar.</small>
                     {pubErrors.precio_maximo && <div className="form-error">{pubErrors.precio_maximo}</div>}
                   </div>
 
-                  {/* Acciones */}
+                  {/* Botón enviar */}
                   <div className="form-actions">
-                    <button type="submit" className="btn btn-primary" disabled={pubSaving}>
-                      {pubSaving ? 'Publicando...' : 'Publicar'}
+                    <button className="btn btn-primary" type="submit" disabled={pubSaving}>
+                      {pubSaving ? 'Creando...' : 'Crear publicación'}
                     </button>
-                    <button type="button" className="btn btn-secondary" onClick={() => setPubSubview('list')}>
+                    <button className="btn btn-secondary" type="button" onClick={() => setPubSubview('list')}>
                       Cancelar
                     </button>
                   </div>
                 </form>
               </div>
+            )}
+
+            {/* FORMULARIO DE EDICIÓN: componente externo para mantener ClienteDashboard simple */}
+            {pubSubview === 'edit' && (
+              <EditorPublicacion
+                publicacion={editingPub}
+                onCancel={() => { setEditingPub(null); setPubSubview('list'); }}
+                onUpdated={(recarga) => {
+                  setPublicaciones(recarga || []);
+                  setMensaje({ texto: 'Tu publicación fue actualizada correctamente', tipo: 'success' });
+                  setEditingPub(null);
+                  setPubSubview('list');
+                }}
+              />
             )}
           </div>
         )}

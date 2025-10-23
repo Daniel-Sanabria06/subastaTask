@@ -48,6 +48,7 @@ export const listarPublicacionesCliente = async () => {
       .from('publicaciones')
       .select('*')
       .eq('cliente_id', usuario.data.user.id)
+      .eq('activa', true)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -189,6 +190,81 @@ export const obtenerPublicacionPorId = async (idpublicacion) => {
     return { success: true, data, error: null };
   } catch (error) {
     console.error('Error al obtener publicación por ID:', error);
+    return { success: false, data: null, error };
+  }
+};
+
+// NUEVO: ACTUALIZAR PUBLICACIÓN DEL CLIENTE
+export const actualizarPublicacion = async (id, {
+  titulo,
+  descripcion,
+  categoria,
+  categoria_otro,
+  ciudad,
+  precio_maximo
+}) => {
+  try {
+    const usuario = await obtenerUsuarioActual();
+    if (!usuario.success) throw new Error('Usuario no autenticado');
+    if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden actualizar publicaciones');
+    if (!id) throw new Error('ID de la publicación es requerido');
+
+    // Validaciones similares a crear
+    const campos = { titulo, descripcion, categoria, ciudad, precio_maximo };
+    for (const [k, v] of Object.entries(campos)) {
+      if (!v && v !== 0) throw new Error(`El campo ${k} es obligatorio`);
+    }
+    if (categoria === 'OTRO' && (!categoria_otro || categoria_otro.trim().length < 3)) {
+      throw new Error('Especifica la categoría en "Otro" con al menos 3 caracteres');
+    }
+    const precioNum = Number(precio_maximo);
+    if (Number.isNaN(precioNum) || precioNum < 0) {
+      throw new Error('El precio máximo debe ser un número positivo');
+    }
+
+    const payload = {
+      titulo: String(titulo).trim(),
+      descripcion: String(descripcion).trim(),
+      categoria,
+      categoria_otro: categoria === 'OTRO' ? (categoria_otro?.trim() || null) : null,
+      ciudad: String(ciudad).trim(),
+      precio_maximo: precioNum
+    };
+
+    const { data, error } = await supabase
+      .from('publicaciones')
+      .update(payload)
+      .eq('id', id)
+      .eq('cliente_id', usuario.data.user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data, error: null };
+  } catch (error) {
+    console.error('Error al actualizar publicación:', error);
+    return { success: false, data: null, error };
+  }
+};
+
+// NUEVO: ELIMINAR PUBLICACIÓN DEL CLIENTE
+export const eliminarPublicacion = async (id) => {
+  try {
+    const usuario = await obtenerUsuarioActual();
+    if (!usuario.success) throw new Error('Usuario no autenticado');
+    if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden eliminar publicaciones');
+    if (!id) throw new Error('ID de la publicación es requerido');
+
+    const { error } = await supabase
+      .from('publicaciones')
+      .delete()
+      .eq('id', id)
+      .eq('cliente_id', usuario.data.user.id);
+
+    if (error) throw error;
+    return { success: true, data: null, error: null };
+  } catch (error) {
+    console.error('Error al eliminar publicación:', error);
     return { success: false, data: null, error };
   }
 };
