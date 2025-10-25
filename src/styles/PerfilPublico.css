@@ -1,0 +1,517 @@
+/**
+ * Estilos para Perfiles Públicos - SubastaTask
+ * 
+ * Este archivo contiene todos los estilos necesarios para las páginas
+ * de perfiles públicos de clientes y trabajadores.
+ * 
+ * Características del diseño:
+ * - Diseño minimalista y moderno
+ * - Soporte completo para modo claro y oscuro
+ * - Diseño responsivo para móviles, tablets y desktop
+ * - Animaciones suaves y transiciones
+ * - Accesibilidad mejorada
+ * 
+ * Componentes estilizados:
+ * - Contenedor principal del perfil
+ * - Tarjeta de perfil con información
+ * - Avatar circular con inicial
+ * - Secciones de información
+ * - Tags de habilidades
+ * - Botones de contacto
+ * - Estados de carga y error
+ * 
+ * @author SubastaTask
+ * @version 1.0.0
+ */
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+/* Contenedor principal que centra y da estructura a toda la página */
+.perfil-publico-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Modo oscuro para el contenedor principal */
+[data-theme="dark"] .perfil-publico-container {
+  background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+}
+
+/* ===== TARJETA DE PERFIL ===== */
+/* Tarjeta principal que contiene toda la información del perfil */
+.perfil-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2.5rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.1),
+    0 8px 16px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+/* Efecto hover para la tarjeta */
+.perfil-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.15),
+    0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Modo oscuro para la tarjeta */
+[data-theme="dark"] .perfil-card {
+  background: rgba(26, 32, 44, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+/* ===== ENCABEZADO DEL PERFIL ===== */
+/* Sección superior con avatar, nombre y tipo de usuario */
+.perfil-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+[data-theme="dark"] .perfil-header {
+  border-bottom-color: #4a5568;
+}
+
+/* ===== AVATAR ===== */
+/* Avatar circular con inicial del nombre */
+.perfil-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.perfil-avatar:hover {
+  transform: scale(1.05);
+}
+
+/* ===== INFORMACIÓN DEL PERFIL ===== */
+/* Nombre del usuario */
+.perfil-nombre {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .perfil-nombre {
+  color: #f7fafc;
+}
+
+/* Tipo de usuario (Cliente/Trabajador) */
+.perfil-tipo {
+  font-size: 1.1rem;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .perfil-tipo {
+  color: #a0aec0;
+}
+
+/* Estado de la cuenta para trabajadores */
+.estado-cuenta {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.estado-activo {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.estado-inactivo {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+[data-theme="dark"] .estado-activo {
+  background: #2d5a3d;
+  color: #68d391;
+  border-color: #38a169;
+}
+
+[data-theme="dark"] .estado-inactivo {
+  background: #5a2d2d;
+  color: #fc8181;
+  border-color: #e53e3e;
+}
+
+/* ===== SECCIÓN DE INFORMACIÓN ===== */
+/* Contenedor para los elementos de información */
+.perfil-info {
+  margin-bottom: 2rem;
+}
+
+/* Elemento individual de información */
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+.info-item:hover {
+  background-color: rgba(102, 126, 234, 0.05);
+  border-radius: 8px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+[data-theme="dark"] .info-item {
+  border-bottom-color: #4a5568;
+}
+
+[data-theme="dark"] .info-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Etiqueta de la información */
+.info-label {
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 0.95rem;
+}
+
+[data-theme="dark"] .info-label {
+  color: #a0aec0;
+}
+
+/* Valor de la información */
+.info-value {
+  color: #2d3748;
+  font-weight: 500;
+  text-align: right;
+}
+
+[data-theme="dark"] .info-value {
+  color: #e2e8f0;
+}
+
+/* ===== SECCIÓN DE HABILIDADES ===== */
+/* Contenedor para las habilidades del trabajador */
+.perfil-habilidades {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .perfil-habilidades {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+.perfil-habilidades h3 {
+  margin: 0 0 1rem 0;
+  color: #2d3748;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .perfil-habilidades h3 {
+  color: #f7fafc;
+}
+
+/* Contenedor de tags de habilidades */
+.habilidades-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Tag individual de habilidad */
+.habilidad-tag {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.habilidad-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* ===== SECCIÓN DE CONTACTO ===== */
+/* Información y botones de contacto */
+.perfil-contacto {
+  background: #f8fafc;
+  padding: 2rem;
+  border-radius: 16px;
+  text-align: center;
+  margin-bottom: 2rem;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .perfil-contacto {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+.perfil-contacto h3 {
+  color: #2d3748;
+  margin: 0 0 1rem 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .perfil-contacto h3 {
+  color: #f7fafc;
+}
+
+.perfil-contacto p {
+  color: #64748b;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+}
+
+[data-theme="dark"] .perfil-contacto p {
+  color: #a0aec0;
+}
+
+/* Contenedor de botones de contacto */
+.contacto-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Botones de contacto */
+.btn-contacto {
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  min-width: 140px;
+  text-align: center;
+}
+
+.btn-registro {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-registro:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-login {
+  background: transparent;
+  color: #667eea;
+  border-color: #667eea;
+}
+
+.btn-login:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* ===== PIE DEL PERFIL ===== */
+/* Sección inferior con enlace de regreso */
+.perfil-footer {
+  text-align: center;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+[data-theme="dark"] .perfil-footer {
+  border-top-color: #4a5568;
+}
+
+.link-inicio {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.link-inicio:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+/* ===== ESTADOS DE CARGA Y ERROR ===== */
+/* Estado de carga */
+.perfil-loading {
+  text-align: center;
+  padding: 3rem;
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.perfil-loading p {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Estado de error */
+.perfil-error {
+  text-align: center;
+  padding: 3rem;
+  color: white;
+}
+
+.perfil-error h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.perfil-error p {
+  margin: 0 0 2rem 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.btn-volver {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.btn-volver:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+/* ===== DISEÑO RESPONSIVO ===== */
+/* Tablets y pantallas medianas */
+@media (max-width: 768px) {
+  .perfil-publico-container {
+    padding: 1rem;
+  }
+  
+  .perfil-card {
+    padding: 2rem;
+    margin: 0;
+  }
+  
+  .perfil-avatar {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+  }
+  
+  .perfil-nombre {
+    font-size: 1.7rem;
+  }
+  
+  .contacto-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-contacto {
+    width: 100%;
+    max-width: 250px;
+  }
+}
+
+/* Móviles */
+@media (max-width: 480px) {
+  .perfil-publico-container {
+    padding: 0.5rem;
+  }
+  
+  .perfil-card {
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+  
+  .perfil-avatar {
+    width: 70px;
+    height: 70px;
+    font-size: 1.8rem;
+  }
+  
+  .perfil-nombre {
+    font-size: 1.5rem;
+  }
+  
+  .info-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .info-value {
+    text-align: left;
+  }
+  
+  .habilidades-tags {
+    justify-content: center;
+  }
+  
+  .perfil-contacto {
+    padding: 1.5rem;
+  }
+}
