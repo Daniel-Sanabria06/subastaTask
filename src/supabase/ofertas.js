@@ -139,6 +139,29 @@ export const obtenerOfertaPorId = async (idoferta) => {
   }
 };
 
+// NUEVO: Verificar si una publicación tiene oferta aceptada (cliente propietario)
+export const existeOfertaAceptadaParaPublicacion = async (publicacion_id) => {
+  try {
+    const usuario = await obtenerUsuarioActual();
+    if (!usuario.success) throw new Error('Usuario no autenticado');
+    if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden verificar ofertas aceptadas de sus publicaciones');
+    if (!publicacion_id) throw new Error('publicacion_id es requerido');
+
+    const { count, error } = await supabase
+      .from('ofertas')
+      .select('id', { count: 'exact', head: true })
+      .eq('cliente_id', usuario.data.user.id)
+      .eq('publicacion_id', publicacion_id)
+      .eq('estado', 'aceptada');
+
+    if (error) throw error;
+    return { success: true, data: (count ?? 0) > 0, error: null };
+  } catch (error) {
+    console.error('Error al verificar oferta aceptada por publicación:', error);
+    return { success: false, data: null, error };
+  }
+};
+
 /**
  * CONTAR OFERTAS DEL TRABAJADOR POR PUBLICACIÓN
  */
@@ -159,5 +182,67 @@ export const contarOfertasDelTrabajadorPorPublicacion = async (publicacion_id) =
   } catch (error) {
     console.error('Error al contar ofertas del trabajador por publicación:', error);
     return { success: false, data: null, error };
+  }
+};
+
+
+/**
+ * EDITAR OFERTA (solo si está pendiente)
+ */
+export const editarOferta = async (id, datos) => {
+  try {
+    const usuario = await obtenerUsuarioActual();
+    if (!usuario.success) throw new Error('Usuario no autenticado');
+    if (usuario.data.profile.type !== 'trabajador') throw new Error('Solo trabajadores pueden editar ofertas');
+
+    const { monto_oferta, mensaje } = datos;
+    const monto = Number(monto_oferta);
+    if (isNaN(monto) || monto < 0) throw new Error('Monto inválido');
+    if (!mensaje || mensaje.trim().length < 5) throw new Error('El mensaje debe tener al menos 5 caracteres');
+
+    const { data, error } = await supabase
+      .from('ofertas')
+      .update({
+        monto_oferta: monto,
+        mensaje: mensaje.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('trabajador_id', usuario.data.user.id)
+      .eq('estado', 'pendiente')
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('No se pudo editar la oferta (puede estar aceptada o no existir)');
+
+    return { success: true, data, error: null };
+  } catch (error) {
+    console.error('Error al editar oferta:', error);
+    return { success: false, data: null, error };
+  }
+};
+
+/**
+ * ELIMINAR OFERTA (solo si está pendiente)
+ */
+export const eliminarOferta = async (id) => {
+  try {
+    const usuario = await obtenerUsuarioActual();
+    if (!usuario.success) throw new Error('Usuario no autenticado');
+    if (usuario.data.profile.type !== 'trabajador') throw new Error('Solo trabajadores pueden eliminar ofertas');
+
+    const { error } = await supabase
+      .from('ofertas')
+      .delete()
+      .eq('id', id)
+      .eq('trabajador_id', usuario.data.user.id)
+      .eq('estado', 'pendiente');
+
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error al eliminar oferta:', error);
+    return { success: false, error };
   }
 };
