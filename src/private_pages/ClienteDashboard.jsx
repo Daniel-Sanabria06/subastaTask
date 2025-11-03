@@ -439,10 +439,29 @@ const ClienteDashboard = () => {
                 e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=Usuario';
               }}
             />
-            <label className="btn btn-secondary" style={{ cursor: subiendoAvatar ? 'not-allowed' : 'pointer', marginLeft: '12px' }}>
-              {subiendoAvatar ? 'Subiendo...' : 'Cambiar foto'}
-              <input type="file" accept="image/*" onChange={manejarCambioAvatar} style={{ display: 'none' }} disabled={subiendoAvatar} />
-            </label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: '12px' }}>
+              <label className="btn btn-secondary" style={{ cursor: subiendoAvatar ? 'not-allowed' : 'pointer' }}>
+                {subiendoAvatar ? 'Subiendo...' : 'Cambiar foto'}
+                <input type="file" accept="image/*" onChange={manejarCambioAvatar} style={{ display: 'none' }} disabled={subiendoAvatar} />
+              </label>
+              <a 
+                href={`/cliente/${datosUsuario?.user?.id}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn btn-primary" 
+                style={{ 
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  height: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                title="Ver mi perfil público"
+              >
+                👁️ Ver Perfil Público
+              </a>
+            </div>
           </div>
         </div>
         

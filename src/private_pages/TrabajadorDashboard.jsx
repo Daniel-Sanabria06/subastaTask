@@ -307,10 +307,29 @@ const handleChange = (e) => {
                 e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=Usuario';
               }}
             />
-            <label className="btn btn-secondary" style={{ cursor: uploadingAvatar ? 'not-allowed' : 'pointer', marginLeft: '12px' }}>
-              {uploadingAvatar ? 'Subiendo...' : 'Cambiar foto de perfil'}
-              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} disabled={uploadingAvatar} />
-            </label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginLeft: '12px' }}>
+              <label className="btn btn-secondary" style={{ cursor: uploadingAvatar ? 'not-allowed' : 'pointer' }}>
+                {uploadingAvatar ? 'Subiendo...' : 'Cambiar foto de perfil'}
+                <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} disabled={uploadingAvatar} />
+              </label>
+              <a 
+                href={`/trabajador/${userData?.user?.id}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn btn-primary" 
+                style={{ 
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  height: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                title="Ver mi perfil público"
+              >
+                👁️ Ver Perfil Público
+              </a>
+            </div>
           </div>
           {/* Mostrar si tiene perfil específico creado */}
           <div className="profile-status">
@@ -746,4 +765,4 @@ const handleChange = (e) => {
   );
 };
 
-export default TrabajadorDashboard;  
+export default TrabajadorDashboard;
