@@ -1,12 +1,21 @@
+// Página privada de detalle de Publicación.
+// Funcionalidades principales:
+// - Cargar publicación por id y datos del usuario autenticado.
+// - Para clientes: listar ofertas recibidas y permitir abrir/crear chat por oferta.
+// - Para trabajadores: enviar nuevas ofertas si no supera el límite.
+// Notas del commit:
+// - La visibilidad del botón "Iniciar chat" en ofertas comprobadas usa usuario.user.id
+//   comparando contra o.cliente_id y o.trabajador_id (evita usar usuario.id que era undefined).
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { obtenerUsuarioActual } from '../supabase/autenticacion.js';
 import { obtenerPublicacionPorId } from '../supabase/publicaciones.js';
 import { listarOfertasClientePorPublicacion } from '../supabase/ofertas.js';
+import { obtenerChatPorOferta, crearChat } from '../supabase/chat.js';
 import '../styles/Dashboard.css';
 import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supabase/ofertas.js';
 
-const PublicacionDetalle = () => {
+  const PublicacionDetalle = () => {
   const { idpublicacion } = useParams();
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState(null);
@@ -22,7 +31,30 @@ const PublicacionDetalle = () => {
   const [ofertaSaving, setOfertaSaving] = useState(false);
   const [ultimaOfertaCreada, setUltimaOfertaCreada] = useState(null);
 
-  // helper para capitalizar nombres
+  // Abre o crea el chat asociado a una oferta de la publicación.
+  // Si existe chat, navega; si no, crea uno con cliente y trabajador de la oferta.
+  const accederChatDesdeOferta = async (oferta) => {
+    if (!oferta?.id) return;
+    try {
+      const { success: existe, data: chat } = await obtenerChatPorOferta(oferta.id);
+      if (existe && chat) {
+        navigate(`/chats/${chat.id}`);
+        return;
+      }
+      const { success: creado, data: nuevoChat, error } = await crearChat({
+        oferta_id: oferta.id,
+        cliente_id: oferta.cliente_id,
+        trabajador_id: oferta.trabajador_id
+      });
+      if (!creado || !nuevoChat) throw error || new Error('No se pudo crear el chat');
+      navigate(`/chats/${nuevoChat.id}`);
+    } catch (err) {
+      console.error('Error al iniciar chat desde Publicación:', err);
+      setMensaje({ texto: err?.message || 'Error al iniciar chat', tipo: 'error' });
+    }
+  };
+
+  // Helper para capitalizar nombres con presentación uniforme.
   const toTitleCase = (s) => {
     if (!s) return '';
     return s
@@ -190,7 +222,14 @@ const PublicacionDetalle = () => {
                         <p className="item-desc">{o.mensaje}</p>
                         <div className="item-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <small>{nombreTrabajador ? `Trabajador: ${nombreTrabajador}` : `ID trabajador: ${o.trabajador_id}`}</small>
-                          <button className="btn btn-secondary" onClick={() => navigate(`/ofertas/${o.id}`)}>Ver oferta</button>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-secondary" onClick={() => navigate(`/ofertas/${o.id}`)}>Ver oferta</button>
+                            {(usuario?.user?.id === o.cliente_id || usuario?.user?.id === o.trabajador_id) && (
+                              <button className="btn btn-chats" title="Iniciar chat" onClick={() => accederChatDesdeOferta(o)}>
+                                💬 Iniciar chat
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

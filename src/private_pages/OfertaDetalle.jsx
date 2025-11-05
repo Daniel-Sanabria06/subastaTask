@@ -1,7 +1,19 @@
+// Página privada de detalle de Oferta.
+// Objetivos clave del flujo:
+// - Cargar oferta por id y datos de usuario autenticado.
+// - Mostrar información de la publicación relacionada y acciones.
+// - Permitir a cliente y trabajador acceder/crear el chat de esta oferta.
+// - Validar límites de ofertas del trabajador y mostrar formulario cuando aplique.
+// Notas de implementación relevantes al commit:
+// - La visibilidad del botón "Iniciar chat" se valida con usuario.user.id
+//   comparando contra oferta.cliente_id y oferta.trabajador_id.
+// - El acceso al chat primero intenta recuperar uno existente y, si no, crea un nuevo chat.
+import { useEffect, useState } from 'react';
 import { useEffect, useState} from 'react'; // 👈 Aquí se añade useMemo
 import { useParams, useNavigate } from 'react-router-dom';
 import { obtenerUsuarioActual } from '../supabase/autenticacion.js';
 import { obtenerOfertaPorId, contarOfertasDelTrabajadorPorPublicacion, crearOferta } from '../supabase/ofertas.js';
+import { obtenerChatPorOferta, crearChat } from '../supabase/chat.js';
 import '../styles/Dashboard.css';
 import { editarOferta, eliminarOferta } from '../supabase/ofertas.js';
 import '../styles/OfertaDetalle.css'; // 👈 IMPORTA EL NUEVO CSS AQUÍ
@@ -21,6 +33,7 @@ const OfertaDetalle = () => {
   const [ofertaForm, setOfertaForm] = useState({ monto_oferta: '', mensaje: '' });
   const [ofertaSaving, setOfertaSaving] = useState(false);
   const [ultimaOfertaCreada, setUltimaOfertaCreada] = useState(null);
+  const [chatLoading, setChatLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({ monto_oferta: '', mensaje: '' });
   const [deleting, setDeleting] = useState(false);
@@ -114,6 +127,46 @@ const OfertaDetalle = () => {
       .join(' ');
   };
 
+  // Handler para abrir o crear el chat asociado a la oferta.
+  // Busca un chat existente; si no existe, crea uno con los participantes
+  // cliente_id y trabajador_id de la oferta.
+  const handleAccederChat = async () => {
+    if (!oferta?.id) return;
+    
+    try {
+      setChatLoading(true);
+      
+      // Buscar si ya existe un chat para esta oferta
+      const { success: chatExiste, data: chatData } = await obtenerChatPorOferta(oferta.id);
+      
+      if (chatExiste && chatData) {
+        // Si existe, redirigir al chat
+        navigate(`/chats/${chatData.id}`);
+      } else {
+        // Si no existe, crear un nuevo chat
+        const { success: chatCreado, data: nuevoChat, error } = await crearChat({
+          oferta_id: oferta.id,
+          cliente_id: oferta.cliente_id,
+          trabajador_id: oferta.trabajador_id
+        });
+        
+        if (chatCreado && nuevoChat) {
+          navigate(`/chats/${nuevoChat.id}`);
+        } else {
+          throw error || new Error('No se pudo crear el chat');
+        }
+      }
+    } catch (err) {
+      console.error('Error al acceder al chat:', err);
+      setMensaje({ 
+        texto: err?.message || 'Error al acceder al chat', 
+        tipo: 'error' 
+      });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   useEffect(() => {
     const cargar = async () => {
       try {
@@ -166,6 +219,21 @@ const OfertaDetalle = () => {
           <h2 className="section-title">Oferta: {pub?.titulo || 'Publicación'}</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-secondary" onClick={() => navigate(-1)}>← Volver</button>
+            
+            {/* Botón de iniciar chat.
+               Visibilidad: sólo cliente o trabajador vinculados a la oferta.
+               Comparación correcta: usuario.user.id vs oferta.cliente_id/oferta.trabajador_id */}
+            {(usuario?.user?.id === oferta.cliente_id || usuario?.user?.id === oferta.trabajador_id) && (
+              <button
+                className="btn btn-chats"
+                onClick={handleAccederChat}
+                disabled={chatLoading}
+                title="Iniciar o abrir el chat de esta oferta"
+              >
+                💬 {chatLoading ? 'Cargando...' : 'Iniciar chat'}
+              </button>
+            )}
+            
 
 
 

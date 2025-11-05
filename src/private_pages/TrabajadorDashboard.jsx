@@ -8,9 +8,10 @@ import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
 import PrivacyLabel from '../components/PrivacyLabel';
 import { CATEGORIAS_SERVICIO, listarPublicacionesActivas } from '../supabase/publicaciones.js';
 import { crearOferta, listarOfertasTrabajador } from '../supabase/ofertas.js';
+import { obtenerChatPorOferta, crearChat } from '../supabase/chat.js';
 import '../styles/Dashboard.css';
 
-const TrabajadorDashboard = () => {
+  const TrabajadorDashboard = () => {
   const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState('proyectos');
   // Subvista dentro de "Mis Trabajos": publicaciones vs mis ofertas
@@ -54,6 +55,30 @@ const TrabajadorDashboard = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Acceder o iniciar chat para una oferta específica (dentro del componente)
+  const handleIniciarChatOferta = async (oferta) => {
+    try {
+      if (!oferta?.id) return;
+      // Buscar si ya existe un chat para esta oferta
+      const { success: existe, data: chat } = await obtenerChatPorOferta(oferta.id);
+      if (existe && chat) {
+        navigate(`/chats/${chat.id}`);
+        return;
+      }
+      // Crear chat si no existe
+      const { success: creado, data: nuevoChat, error } = await crearChat({
+        oferta_id: oferta.id,
+        cliente_id: oferta.cliente_id,
+        trabajador_id: oferta.trabajador_id || userData?.user?.id
+      });
+      if (!creado || !nuevoChat) throw error || new Error('No se pudo crear el chat');
+      navigate(`/chats/${nuevoChat.id}`);
+    } catch (err) {
+      console.error('Error al iniciar chat desde Mis Ofertas:', err);
+      setMessage({ text: err?.message || 'Error al iniciar chat', type: 'error' });
+    }
+  };
 
   // Función para generar avatar único basado en el ID del usuario
   const generateUserAvatar = (userId) => {
@@ -597,6 +622,10 @@ const handleChange = (e) => {
                             <div style={{ display: 'flex', gap: 8 }}>
                               <button className="btn btn-primary" onClick={() => navigate(`/ofertas/${o.id}`)}>
                                 Ver oferta
+                              </button>
+                              <button className="btn btn-chats" title="Iniciar chat"
+                                onClick={() => handleIniciarChatOferta(o)}>
+                                💬 Iniciar chat
                               </button>
                               {o.publicacion?.id && (
                                 <button className="btn btn-secondary" onClick={() => navigate(`/publicaciones/${o.publicacion.id}`)}>
