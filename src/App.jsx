@@ -25,6 +25,8 @@ import Servicios from './public_pages/Servicios';
 import Contacto from './public_pages/Contacto';
 import ChatsListPage from './private_pages/ChatsListPage';
 import ChatPage from './private_pages/ChatPage';
+import PerfilCliente from './public_pages/PerfilCliente';
+import PerfilTrabajador from './public_pages/PerfilTrabajador';
 
 // Estilos
 import './App.css';
@@ -154,6 +156,11 @@ function App() {
               } 
             />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            
+            {/* Rutas públicas para perfiles compartibles */}
+            <Route path="/cliente/:id" element={<PerfilCliente />} />
+            <Route path="/trabajador/:id" element={<PerfilTrabajador />} />
+            
             <Route 
               path="/admin" 
               element={

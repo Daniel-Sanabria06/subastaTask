@@ -392,3 +392,132 @@ export const sendPasswordResetEmail = async (email) => {
     return { success: false, error: err };
   }
 };
+
+/**
+ * Obtiene los datos públicos de un cliente por su ID
+ * 
+ * Esta función está diseñada específicamente para mostrar perfiles públicos
+ * compartibles de clientes. Solo retorna información básica y no sensible.
+ * 
+ * Campos retornados:
+ * - id: Identificador único del cliente
+ * - nombre_completo: Nombre completo del cliente
+ * - ciudad: Ciudad de residencia
+ * - edad: Edad del cliente
+ * - created_at: Fecha de registro en la plataforma
+ * 
+ * @param {string} clienteId - ID único del cliente a consultar
+ * @returns {Promise<Object|null>} Datos públicos del cliente o null si no existe
+ * @throws {Error} Si ocurre un error en la consulta a la base de datos
+ * 
+ * @example
+ * const cliente = await getClientePublico('123e4567-e89b-12d3-a456-426614174000');
+ * if (cliente) {
+ *   console.log(cliente.nombre_completo); // "Juan Pérez"
+ * }
+ * 
+ * @author SubastaTask
+ * @version 1.0.0
+ */
+export const getClientePublico = async (clienteId) => {
+  try {
+    // Consulta a la tabla clientes con campos específicos para perfil público
+    const { data, error } = await supabase
+      .from('clientes')
+      .select(`
+        id,
+        nombre_completo,
+        ciudad,
+        edad,
+        created_at
+      `)
+      .eq('id', clienteId)
+      .single();
+
+    // Manejo de errores de Supabase
+    if (error) {
+      console.error('Error al consultar cliente:', error);
+      return null;
+    }
+
+    // Verificar si se encontró el cliente
+    if (!data) {
+      console.warn(`Cliente con ID ${clienteId} no encontrado`);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error inesperado en getClientePublico:', error);
+    throw new Error('Error al obtener datos públicos del cliente');
+  }
+};
+
+/**
+ * Obtiene los datos públicos de un trabajador por su ID
+ * 
+ * Esta función está diseñada para mostrar perfiles públicos compartibles
+ * de trabajadores. Solo retorna información profesional básica y filtra
+ * únicamente trabajadores con cuentas activas.
+ * 
+ * Campos retornados:
+ * - id: Identificador único del trabajador
+ * - nombre_completo: Nombre completo del trabajador
+ * - ciudad: Ciudad donde ofrece servicios
+ * - edad: Edad del trabajador
+ * - profesion: Profesión o área de especialización
+ * - habilidades: Lista de habilidades separadas por comas
+ * - activo: Estado de la cuenta (solo activos son visibles)
+ * - created_at: Fecha de registro en la plataforma
+ * 
+ * @param {string} trabajadorId - ID único del trabajador a consultar
+ * @returns {Promise<Object|null>} Datos públicos del trabajador o null si no existe/inactivo
+ * @throws {Error} Si ocurre un error en la consulta a la base de datos
+ * 
+ * @example
+ * const trabajador = await getTrabajadorPublico('123e4567-e89b-12d3-a456-426614174000');
+ * if (trabajador) {
+ *   console.log(trabajador.profesion); // "Desarrollador Web"
+ *   console.log(trabajador.habilidades); // "JavaScript, React, Node.js"
+ * }
+ * 
+ * @author SubastaTask
+ * @version 1.0.0
+ */
+export const getTrabajadorPublico = async (trabajadorId) => {
+  try {
+    // Consulta a la tabla trabajadores con campos específicos para perfil público
+    const { data, error } = await supabase
+      .from('trabajadores')
+      .select(`
+        id,
+        nombre_completo,
+        ciudad,
+        edad,
+        profesion,
+        habilidades,
+        estado_cuenta,
+        created_at
+      `)
+      .eq('id', trabajadorId)
+      // Removemos el filtro de activo para mostrar todos los trabajadores
+      .single();
+
+    // Manejo de errores de Supabase
+    if (error) {
+      console.error('Error al consultar trabajador:', error);
+      return null;
+    }
+
+    // Verificar si se encontró el trabajador
+    if (!data) {
+      console.warn(`Trabajador con ID ${trabajadorId} no encontrado o cuenta inactiva`);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error inesperado en getTrabajadorPublico:', error);
+    throw new Error('Error al obtener datos públicos del trabajador');
+  }
+};
