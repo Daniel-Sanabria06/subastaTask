@@ -553,12 +553,21 @@ const ClienteDashboard = () => {
                             <p className="item-desc">{pub.descripcion}</p>
                             <div className="item-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <small>{new Date(pub.created_at).toLocaleString('es-CO')}</small>
-                              <button
-                                className="btn btn-secondary"
-                                onClick={() => navegar(`/publicaciones/${pub.id}`)}
-                              >
-                                Ver publicación
-                              </button>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => navegar(`/publicaciones/${pub.id}`)}
+                                >
+                                  Ver publicación
+                                </button>
+                                <button
+                                  className="btn btn-chats"
+                                  title="Ver ofertas e iniciar chat"
+                                  onClick={() => navegar(`/publicaciones/${pub.id}`)}
+                                >
+                                  💬 Ofertas y chat
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
