@@ -4,6 +4,7 @@
 //   vía "/oferta/:idoferta" que apunta a OfertaDetalle, para facilitar el acceso
 //   desde enlaces alternativos compartidos por clientes.
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { logger } from './utils/logger.js'
 
 // Componentes
 import Header from './components/Header';
@@ -45,29 +46,29 @@ function App() {
       const check = async () => {
         const { success, data } = await obtenerUsuarioActual();
         
-        console.log('🔍 DEBUG RoleRoute - Datos recibidos:', { success, data });
+        logger.debug('🔍 DEBUG RoleRoute - Datos recibidos:', { success, data });
         
         if (success && data) {
           // Verificar si tiene profile.type (para admin, cliente, trabajador)
           const userType = data.profile?.type;
-          console.log('🔍 DEBUG - Tipo de usuario:', userType);
-          console.log('🔍 DEBUG - Roles permitidos:', "administrador");
+          logger.debug('🔍 DEBUG - Tipo de usuario:', userType);
+          logger.debug('🔍 DEBUG - Roles permitidos:', "administrador");
           
             if (userType && allow.includes(userType)) { 
-          console.log('✅ Usuario autorizado'); 
+          logger.debug('✅ Usuario autorizado'); 
           setAllowed(true); 
           setDebugInfo(`Autorizado: ${userType}`); 
         } else { 
-          console.log('❌ Usuario NO autorizado'); 
-          console.log('🔍 Debug detallado:');
-          console.log('userType:', userType, 'tipo:', typeof userType);
-          console.log('allow:', allow, 'tipo:', typeof allow);
-          console.log('allow.includes(userType):', allow.includes(userType));
+          logger.debug('❌ Usuario NO autorizado'); 
+          logger.debug('🔍 Debug detallado:');
+          logger.debug('userType:', userType, 'tipo:', typeof userType);
+          logger.debug('allow:', allow, 'tipo:', typeof allow);
+          logger.debug('allow.includes(userType):', allow.includes(userType));
           setAllowed(false); 
           setDebugInfo(`No autorizado. Tipo: ${userType}, Permitidos: ${allow.join(', ')}`); 
         }
         } else {
-          console.log('❌ No hay usuario autenticado');
+          logger.debug('❌ No hay usuario autenticado');
           setAllowed(false);
           setDebugInfo('No autenticado');
         }
