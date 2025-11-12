@@ -4,20 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Configuración para resolver problemas de conexión
+// Configuración simplificada para evitar conflictos
 const options = {
-  db: {
-    schema: 'public',
-  },
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false
-  },
-  global: {
-    headers: {
-      'apikey': supabaseKey
-    }
   }
 };
 

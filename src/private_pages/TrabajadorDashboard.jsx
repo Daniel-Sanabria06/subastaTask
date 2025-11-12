@@ -8,9 +8,11 @@ import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
 import PrivacyLabel from '../components/PrivacyLabel';
 import { CATEGORIAS_SERVICIO, listarPublicacionesActivas } from '../supabase/publicaciones.js';
 import { crearOferta, listarOfertasTrabajador } from '../supabase/ofertas.js';
+import { obtenerChatPorOferta, crearChat } from '../supabase/chat.js';
+import { listarResenasTrabajadorPaginadas, obtenerEstadisticasTrabajador } from '../supabase/reviews';
 import '../styles/Dashboard.css';
 
-const TrabajadorDashboard = () => {
+  const TrabajadorDashboard = () => {
   const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState('proyectos');
   // Subvista dentro de "Mis Trabajos": publicaciones vs mis ofertas
@@ -34,6 +36,12 @@ const TrabajadorDashboard = () => {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  // Estado para reseñas
+  const [reseñasLoading, setReseñasLoading] = useState(false);
+  const [reseñas, setReseñas] = useState([]);
+  const [reseñasPage, setReseñasPage] = useState(1);
+  const [reseñasTotal, setReseñasTotal] = useState(0);
+  const [reseñasStats, setReseñasStats] = useState({ promedio: 0, total: 0 });
   const [formData, setFormData] = useState({
     // Datos básicos del trabajador
     nombre_completo: '',
@@ -54,6 +62,30 @@ const TrabajadorDashboard = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Acceder o iniciar chat para una oferta específica (dentro del componente)
+  const handleIniciarChatOferta = async (oferta) => {
+    try {
+      if (!oferta?.id) return;
+      // Buscar si ya existe un chat para esta oferta
+      const { success: existe, data: chat } = await obtenerChatPorOferta(oferta.id);
+      if (existe && chat) {
+        navigate(`/chats/${chat.id}`);
+        return;
+      }
+      // Crear chat si no existe
+      const { success: creado, data: nuevoChat, error } = await crearChat({
+        oferta_id: oferta.id,
+        cliente_id: oferta.cliente_id,
+        trabajador_id: oferta.trabajador_id || userData?.user?.id
+      });
+      if (!creado || !nuevoChat) throw error || new Error('No se pudo crear el chat');
+      navigate(`/chats/${nuevoChat.id}`);
+    } catch (err) {
+      console.error('Error al iniciar chat desde Mis Ofertas:', err);
+      setMessage({ text: err?.message || 'Error al iniciar chat', type: 'error' });
+    }
+  };
 
   // Función para generar avatar único basado en el ID del usuario
   const generateUserAvatar = (userId) => {
@@ -186,6 +218,48 @@ const TrabajadorDashboard = () => {
       if (st.jobsSubview) setJobsSubview(st.jobsSubview);
     }
   }, [location]);
+
+  // Cargar reseñas cuando se abre la pestaña
+  useEffect(() => {
+    const cargarReseñas = async () => {
+      if (activeTab !== 'reseñas' || !userData?.user?.id) return;
+      try {
+        setReseñasLoading(true);
+        const [statsResp, listResp] = await Promise.all([
+          obtenerEstadisticasTrabajador(userData.user.id),
+          listarResenasTrabajadorPaginadas(userData.user.id, reseñasPage, 10)
+        ]);
+        if (statsResp.success && statsResp.data) setReseñasStats(statsResp.data);
+        if (listResp.success) {
+          setReseñas(listResp.data || []);
+          setReseñasTotal(listResp.total || 0);
+        }
+      } catch (e) {
+        console.error('Error al cargar reseñas:', e);
+        setMessage({ text: 'No se pudieron cargar tus reseñas', type: 'error' });
+      } finally {
+        setReseñasLoading(false);
+      }
+    };
+    cargarReseñas();
+  }, [activeTab, userData, reseñasPage]);
+
+  const fechaRelativa = (fecha) => {
+    const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
+    const diffMs = Date.now() - d.getTime();
+    const sec = Math.floor(diffMs / 1000);
+    if (sec < 60) return `hace ${sec} segundo${sec !== 1 ? 's' : ''}`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `hace ${min} minuto${min !== 1 ? 's' : ''}`;
+    const horas = Math.floor(min / 60);
+    if (horas < 24) return `hace ${horas} hora${horas !== 1 ? 's' : ''}`;
+    const dias = Math.floor(horas / 24);
+    if (dias < 30) return `hace ${dias} día${dias !== 1 ? 's' : ''}`;
+    const meses = Math.floor(dias / 30);
+    if (meses < 12) return `hace ${meses} mes${meses !== 1 ? 'es' : ''}`;
+    const anios = Math.floor(meses / 12);
+    return `hace ${anios} año${anios !== 1 ? 's' : ''}`;
+  };
 
   /**
    * EFECTO: AUTO-OCULTAR SNACKBAR DE ÉXITO
@@ -363,6 +437,14 @@ const handleChange = (e) => {
               onClick={() => setActiveTab('perfil-profesional')}
             >
               Perfil Profesional
+            </button>
+          </li>
+          <li>
+            <button 
+              className={activeTab === 'reseñas' ? 'active' : ''} 
+              onClick={() => setActiveTab('reseñas')}
+            >
+              Reseñas
             </button>
           </li>
         </ul>
@@ -598,6 +680,10 @@ const handleChange = (e) => {
                               <button className="btn btn-primary" onClick={() => navigate(`/ofertas/${o.id}`)}>
                                 Ver oferta
                               </button>
+                              <button className="btn btn-chats" title="Iniciar chat"
+                                onClick={() => handleIniciarChatOferta(o)}>
+                                💬 Iniciar chat
+                              </button>
                               {o.publicacion?.id && (
                                 <button className="btn btn-secondary" onClick={() => navigate(`/publicaciones/${o.publicacion.id}`)}>
                                   Ver publicación
@@ -758,6 +844,61 @@ const handleChange = (e) => {
               userData={userData}
               onProfileUpdate={(updatedData) => setUserData(updatedData)}
             />
+          </div>
+        )}
+
+        {activeTab === 'reseñas' && (
+          <div className="tab-content animate-fade-in">
+            <div className="section-header">
+              <h3 className="section-title">Mis Reseñas</h3>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                {reseñasStats.promedio?.toFixed?.(1) || '0.0'} / 5
+              </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Basado en {reseñasStats.total || 0} reseña{(reseñasStats.total || 0) !== 1 ? 's' : ''}
+              </div>
+            </div>
+
+            {reseñasLoading ? (
+              <div className="loading-container">
+                <div className="spinner"></div>
+                <p>Cargando reseñas...</p>
+              </div>
+            ) : (
+              <div>
+                {reseñas.length === 0 ? (
+                  <div className="empty-state"><p>No tienes reseñas aún</p></div>
+                ) : (
+                  <div className="items-grid">
+                    {reseñas.map((r, idx) => (
+                      <div key={idx} className="item-card">
+                        <div className="item-card-header" style={{ justifyContent: 'space-between' }}>
+                          <div style={{ color: '#f5a623', fontWeight: 700 }}>
+                            {'★'.repeat(Math.round(r.estrellas || 0))}
+                          </div>
+                          <div className="meta-item"><span className="label">Fecha:</span> {fechaRelativa(r.created_at)}</div>
+                        </div>
+                        {r.comentario && <p className="item-desc">{r.comentario}</p>}
+                        <small style={{ color: 'var(--text-secondary)' }}>
+                          Reseña anónima vinculada a oferta
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Paginación */}
+                {reseñasTotal > 10 && (
+                  <div className="form-actions" style={{ justifyContent: 'center' }}>
+                    <button className="btn btn-secondary" onClick={() => setReseñasPage(p => Math.max(1, p - 1))} disabled={reseñasPage === 1}>Anterior</button>
+                    <span style={{ padding: '0 12px' }}>Página {reseñasPage} de {Math.ceil(reseñasTotal / 10)}</span>
+                    <button className="btn btn-secondary" onClick={() => setReseñasPage(p => p + 1)} disabled={reseñasPage >= Math.ceil(reseñasTotal / 10)}>Siguiente</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>

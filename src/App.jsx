@@ -1,3 +1,8 @@
+// Archivo de routing principal de la aplicación.
+// Contiene rutas públicas y privadas, con un guard simple por rol.
+// Nota del commit: se añadió un alias adicional para ofertas
+//   vía "/oferta/:idoferta" que apunta a OfertaDetalle, para facilitar el acceso
+//   desde enlaces alternativos compartidos por clientes.
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Componentes
@@ -18,6 +23,8 @@ import AdminPanel from './admin/AdminPanel';
 import ComoFunciona from './public_pages/ComoFunciona';
 import Servicios from './public_pages/Servicios';
 import Contacto from './public_pages/Contacto';
+import ChatsListPage from './private_pages/ChatsListPage';
+import ChatPage from './private_pages/ChatPage';
 import PerfilCliente from './public_pages/PerfilCliente';
 import PerfilTrabajador from './public_pages/PerfilTrabajador';
 
@@ -27,7 +34,8 @@ import { useEffect, useState } from 'react';
 import { obtenerUsuarioActual } from './supabase/autenticacion';
 
 function App() {
-  // Guardas por rol dentro de App sin crear archivos adicionales
+  // Guardas por rol dentro de App sin crear archivos adicionales.
+  // RoleRoute comprueba el tipo de usuario y permite/deniega acceso a la ruta.
   const RoleRoute = ({ children, allow }) => {
     const [loading, setLoading] = useState(true);
     const [allowed, setAllowed] = useState(false);
@@ -136,6 +144,17 @@ function App() {
                 </RoleRoute>
               } 
             />
+            {/* Alias adicional para acceder a detalle de oferta: /oferta/:idoferta
+                Apunta a la misma página de detalle de oferta y mantiene
+                los mismos permisos que /ofertas/:idoferta. */}
+            <Route 
+              path="/oferta/:idoferta" 
+              element={
+                <RoleRoute allow={["cliente", "trabajador", "administrador"]}>
+                  <OfertaDetalle />
+                </RoleRoute>
+              } 
+            />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             
             {/* Rutas públicas para perfiles compartibles */}
@@ -147,6 +166,22 @@ function App() {
               element={
                 <RoleRoute allow={["administrador"]}>
                   <AdminPanel />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="/chats" 
+              element={
+                <RoleRoute allow={["cliente", "trabajador"]}>
+                  <ChatsListPage />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="/chats/:idchat" 
+              element={
+                <RoleRoute allow={["cliente", "trabajador"]}>
+                  <ChatPage />
                 </RoleRoute>
               } 
             />

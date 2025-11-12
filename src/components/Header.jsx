@@ -72,7 +72,7 @@ const Header = () => {
         <div className="logo-container">
           <Link to="/" className="logo-link">
             <img src={logo} alt="SubasTask Logo" className="logo" />
-            <span className="logo-text">SubasTask</span>
+            <span className="logo-text">SubastaTask</span>
           </Link>
         </div>
 
@@ -119,6 +119,13 @@ const Header = () => {
               <div className="loading-indicator">Cargando...</div>
             ) : user ? (
               <>
+                <Link 
+                  to="/chats" 
+                  className="btn btn-chats"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  💬 Chats
+                </Link>
                 {user.profile.type === 'trabajador' ? (
                   <Link 
                     to="/trabajador/dashboard"
