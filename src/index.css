@@ -1,0 +1,144 @@
+:root {
+  /* === Modo claro (por defecto) === */
+  --color-background: #f0f7ff; /* Blanco nieve con tinte azul */
+  --color-text: #0a2540;       /* Azul marino profundo */
+  --color-gray-light: #edf4ff;
+  --color-gray: #c2e0ff;
+  --color-white: #ffffff;
+
+  /* Acentos temáticos */
+  --color-primary: #1a56a8;    /* Azul pingüino profesional */
+  --color-secondary: #10b981;  /* Mantenido si usas para éxitos, pero opcional */
+  --color-accent: #d4af37;     /* Dorado suave navideño (en lugar de púrpura) */
+
+  /* Sombras modernas */
+  --shadow-sm: 0 1px 2px rgba(10, 37, 64, 0.06);
+  --shadow: 0 2px 6px rgba(10, 37, 64, 0.1);
+  --shadow-md: 0 4px 12px rgba(10, 37, 64, 0.12);
+  --shadow-lg: 0 10px 25px rgba(10, 37, 64, 0.15);
+
+  --border-radius: 0.75rem; /* Más redondeado y moderno */
+  --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+/* === Modo oscuro === */
+[data-theme="dark"] {
+  --color-background: #0a1220;
+  --color-text: #e6f0ff;
+  --color-gray-light: #122033;
+  --color-gray: #2a3f5f;
+  --color-white: #152033;
+
+  --color-primary: #3a86ff;
+  --color-secondary: #34d399;
+  --color-accent: #e0c060; /* Dorado cálido para modo oscuro */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* === Estilos base === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  min-height: 100vh;
+  background-image: 
+    radial-gradient(circle at 15% 25%, rgba(26, 86, 168, 0.02) 1px, transparent 2px),
+    radial-gradient(circle at 85% 75%, rgba(212, 175, 55, 0.01) 1px, transparent 2px);
+  background-size: 70px 70px;
+}
+
+/* === Utilidades básicas === */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Espaciado */
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
+/* Botones */
+.btn {
+  display: inline-block;
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  text-decoration: none;
+  border: none;
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), #1a70c0);
+  color: var(--color-white);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, var(--color-secondary), #0da57a);
+  color: var(--color-white);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.opacity-0 {
+  opacity: 0;
+}

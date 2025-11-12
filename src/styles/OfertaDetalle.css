@@ -1,0 +1,134 @@
+/* === Estilos para OfertaDetalle - compatible con tema claro/oscuro === */
+
+.oferta-detalle-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.oferta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.oferta-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.oferta-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.oferta-card,
+.oferta-form-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 
+    0 6px 20px rgba(10, 37, 64, 0.12),
+    0 2px 6px rgba(10, 37, 64, 0.08);
+}
+
+[data-theme="dark"] .oferta-card,
+[data-theme="dark"] .oferta-form-card {
+  box-shadow: 
+    0 6px 25px rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.oferta-form-card h4 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+}
+
+.oferta-form-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .oferta-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.oferta-form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.oferta-form-label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.oferta-form-control {
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.oferta-form-control:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(26, 86, 168, 0.15);
+}
+
+[data-theme="dark"] .oferta-form-control:focus {
+  box-shadow: 0 0 0 3px rgba(58, 134, 255, 0.2);
+}
+
+.oferta-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.oferta-meta-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.oferta-meta-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.oferta-meta-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.oferta-message {
+  line-height: 1.6;
+  margin: 16px 0;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  border-left: 3px solid var(--accent-primary);
+}
