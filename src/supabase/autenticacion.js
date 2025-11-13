@@ -341,7 +341,7 @@ export const cerrarSesion = async () => {
  */
 export const enviarCorreoRecuperacion = async (email) => {
   try {
-    console.log(`📧 Enviando correo de recuperación a: ${email}`);
+    console.log(`Enviando correo de recuperación a: ${email}`);
     
     const urlRedireccion = `${window.location.origin}/reset-password`;
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, { 

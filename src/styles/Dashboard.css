@@ -112,6 +112,37 @@
   z-index: 0;
 }
 
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Asegura que el estado (Perfil Completo/Pendiente) baje a la siguiente línea
+   cuando el contenedor del usuario está en modo wrap y evita solapamientos */
+.user-info .profile-status {
+  flex-basis: 100%;
+  margin-top: 6px;
+}
+
+/* Evita que el botón de cambiar foto se parta en varias líneas y choque visualmente */
+.user-avatar .btn {
+  white-space: nowrap;
+}
+
 .user-info h2 {
   margin: 0 0 8px 0;
   color: var(--text-primary);
@@ -352,6 +383,15 @@
 
 .btn-secondary:hover {
   background-color: #5a6268;
+}
+
+.btn-chats {
+  background: linear-gradient(135deg, #27ae60, #229954);
+  color: white;
+}
+
+.btn-chats:hover {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
 }
 
 .btn:disabled {

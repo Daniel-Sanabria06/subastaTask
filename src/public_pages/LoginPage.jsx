@@ -112,17 +112,7 @@ const LoginPage = () => {
             </div>
 
             <div className="form-options">
-              <div className="checkbox-group">
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  className="checkbox"
-                />
-                <label htmlFor="remember" className="checkbox-label">
-                  Recordarme
-                </label>
-              </div>
+              
               <div className="forgot-password">
                 <a href="/reset-password" className="link-primary">
                   ¿Olvidaste tu contraseña?
