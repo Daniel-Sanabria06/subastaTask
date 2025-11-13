@@ -21,6 +21,7 @@ import { listarPublicacionesCliente, crearPublicacion, CATEGORIAS_SERVICIO } fro
 // Nuevos componentes extraídos a otra carpeta para mantener el dashboard limpio
 import EditorPublicacion from '../caracteristicas/publicaciones/EditorPublicacion.jsx';
 import EliminarPublicacionButton from '../caracteristicas/publicaciones/EliminarPublicacionButton.jsx';
+// HistorialPublicaciones removido; la funcionalidad de filtros está integrada en la lista
 import '../styles/Dashboard.css';
 
 const ClienteDashboard = () => {
@@ -48,6 +49,10 @@ const ClienteDashboard = () => {
   const [pubLoading, setPubLoading] = useState(false);
   const [pubSubview, setPubSubview] = useState('list'); // 'list' | 'create'
   const [publicaciones, setPublicaciones] = useState([]);
+  // Filtros para la lista de "Mis Publicaciones" (estilo igual al historial)
+  const [listFiltroEstado, setListFiltroEstado] = useState('todas');
+  const [listFiltroCategoria, setListFiltroCategoria] = useState('todas');
+  const [listOrdenarPor, setListOrdenarPor] = useState('fecha');
   // Las ofertas ahora se consultan en /publicaciones/:idpublicacion
   const [pubForm, setPubForm] = useState({
     titulo: '',
@@ -217,13 +222,20 @@ const ClienteDashboard = () => {
     verificarUsuario();
   }, [navegar]);
 
-  // Cargar publicaciones cuando la pestaña de publicaciones está activa
+  // Cargar publicaciones cuando la pestaña "publicaciones" está activa y cambian filtros de la lista
   useEffect(() => {
     const cargarPublicaciones = async () => {
-      if (pestañaActiva !== 'publicaciones') return;
+      // Solo cargar si estamos en Mis Publicaciones y en subvista de lista
+      if (pestañaActiva !== 'publicaciones' || pubSubview !== 'list') return;
+
       try {
         setPubLoading(true);
-        const { success, data, error } = await listarPublicacionesCliente();
+        const opciones = {
+          estado: listFiltroEstado !== 'todas' ? listFiltroEstado : undefined,
+          categoria: listFiltroCategoria !== 'todas' ? listFiltroCategoria : undefined,
+          ordenarPor: listOrdenarPor || 'fecha',
+        };
+        const { success, data, error } = await listarPublicacionesCliente(opciones);
         if (!success) {
           console.error('Error al listar publicaciones:', error);
           setMensaje({ texto: 'No se pudieron cargar tus publicaciones', tipo: 'error' });
@@ -235,7 +247,7 @@ const ClienteDashboard = () => {
       }
     };
     cargarPublicaciones();
-  }, [pestañaActiva]);
+  }, [pestañaActiva, pubSubview, listFiltroEstado, listFiltroCategoria, listOrdenarPor]);
 
   /**
    * EFECTO: AUTO-OCULTAR MENSAJES DE ÉXITO
@@ -394,7 +406,15 @@ const ClienteDashboard = () => {
       } else {
         console.error('Error recargando publicaciones tras creación:', errList);
       }
+      // Cambiar a la vista de lista y mostrar mensaje de confirmación
       setPubSubview('list');
+      // Mostrar mensaje adicional para indicar dónde encontrar la publicación
+      setTimeout(() => {
+        setMensaje({ 
+          texto: 'Publicación creada. Puedes verla en "Mis Publicaciones" → Lista', 
+          tipo: 'success' 
+        });
+      }, 3500);
     } catch (err) {
       console.error('Error al enviar publicación:', err);
       setMensaje({ texto: 'Ocurrió un error al crear la publicación', tipo: 'error' });
@@ -513,24 +533,89 @@ const ClienteDashboard = () => {
           </div>
         )}
         
+        {/* (Historial integrado en Mis Publicaciones) */}
+        
         {/* ================================================================= */}
         {/* PESTAÑA: MIS PUBLICACIONES */}
         {/* ================================================================= */}
         {pestañaActiva === 'publicaciones' && (
           <div className="tab-content animate-fade-in">
-            {/* Encabezado y acciones */}
+            {/* Encabezado y acciones (solo Lista) */}
             {pubSubview === 'list' && (
               <div className="section-header">
                 <h2 className="section-title">Mis Publicaciones</h2>
-                <button className="btn btn-primary" onClick={() => setPubSubview('create')}>
-                  ➕ Crear Publicación
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div className="segmented-control" role="group" aria-label="Vista de publicaciones">
+                    <button
+                      className={`seg-btn active`}
+                      onClick={() => setPubSubview('list')}
+                      title="Ver lista de publicaciones"
+                    >
+                      📋 Lista
+                    </button>
+                  </div>
+                  <button className="btn btn-primary" onClick={() => setPubSubview('create')}>
+                    ➕ Crear Publicación
+                  </button>
+                </div>
               </div>
             )}
 
             {/* LISTA DE PUBLICACIONES */}
             {pubSubview === 'list' && (
               <div>
+                {/* Filtros y ordenamiento (mismo estilo que Historial) */}
+                <div className="filtros-container">
+                  <div className="filtro-grupo">
+                    <span className="form-label">Estado:</span>
+                    <div className="segmented-control filtros-estado" role="group" aria-label="Filtrar por estado">
+                      {[
+                        { valor: 'todas', etiqueta: 'Todas' },
+                        { valor: 'activa', etiqueta: 'Activas' },
+                        { valor: 'con_ofertas', etiqueta: 'Con ofertas' },
+                        { valor: 'finalizada', etiqueta: 'Finalizadas' },
+                        { valor: 'eliminada', etiqueta: 'Eliminadas' },
+                      ].map(estado => (
+                        <button
+                          key={estado.valor}
+                          className={`seg-btn estado-${estado.valor} ${listFiltroEstado === estado.valor ? 'active' : ''}`}
+                          onClick={() => setListFiltroEstado(estado.valor)}
+                          type="button"
+                          title={estado.etiqueta}
+                        >
+                          {estado.etiqueta}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="filtro-grupo">
+                    <label htmlFor="list-filtro-categoria">Categoría:</label>
+                    <select
+                      id="list-filtro-categoria"
+                      value={listFiltroCategoria}
+                      onChange={(e) => setListFiltroCategoria(e.target.value)}
+                    >
+                      <option value="todas">Todas las categorías</option>
+                      {CATEGORIAS_SERVICIO.map(categoria => (
+                        <option key={categoria} value={categoria}>{categoria}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="filtro-grupo">
+                    <label htmlFor="list-ordenar-por">Ordenar por:</label>
+                    <select
+                      id="list-ordenar-por"
+                      value={listOrdenarPor}
+                      onChange={(e) => setListOrdenarPor(e.target.value)}
+                    >
+                      <option value="fecha">Fecha (más reciente)</option>
+                      <option value="categoria">Categoría</option>
+                    </select>
+                  </div>
+                </div>
+
                 {pubLoading ? (
                   <div className="loading-container">
                     <div className="spinner"></div>
@@ -540,10 +625,18 @@ const ClienteDashboard = () => {
                   <>
                     {publicaciones.length === 0 ? (
                       <div className="empty-state">
-                        <p>Aún no has creado publicaciones.</p>
-                        <button className="btn btn-primary" onClick={() => setPubSubview('create')}>
-                          ➕ Crear tu primera publicación
-                        </button>
+                        <p>
+                          {listFiltroEstado === 'finalizada'
+                            ? 'Aún no hay publicaciones marcadas como finalizadas'
+                            : (listFiltroEstado === 'todas'
+                              ? 'Aún no has creado publicaciones.'
+                              : 'No hay publicaciones para mostrar con el filtro seleccionado')}
+                        </p>
+                        {listFiltroEstado === 'todas' && (
+                          <button className="btn btn-primary" onClick={() => setPubSubview('create')}>
+                            ➕ Crear tu primera publicación
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="items-grid">
@@ -587,20 +680,34 @@ const ClienteDashboard = () => {
                                 </button>
                               </div>
                               <div className="item-actions" style={{ display: 'flex', gap: 8 }}>
-                                {/* Editar ahora solo abre el editor extraído */}
+                              
+{/* En "Eliminadas" (por filtro o por estado calculado del item) no se muestran Editar/Eliminar */}
+{(listFiltroEstado !== 'eliminada' || pub?.estado_calculado !== 'eliminada') && (
+  <> 
+    {/* Editar ahora solo abre el editor extraído */}
+    <button
+      className="btn btn-secondary"
+      onClick={() => { setEditingPub(pub.id); setPubSubview('edit'); }}
+    >
+      Editar
+    </button>
+    {/* Eliminar delegado al componente externo con callbacks */}
+    <EliminarPublicacionButton
+      publicacion={pub}
+      onDeleted={(id) => setPublicaciones(prev => prev.filter(p => p.id !== id))}
+      onSuccess={(msg) => setMensaje({ texto: msg || 'Tu publicación fue eliminada con éxito', tipo: 'success' })}
+      onError={(msg) => setMensaje({ texto: msg, tipo: 'error' })}
+    />
+  </>
+)}
+
                                 <button
                                   className="btn btn-secondary"
-                                  onClick={() => { setEditingPub(pub); setPubSubview('edit'); }}
+                                  onClick={() => navegar(`/publicaciones/${pub.id}`)}
                                 >
-                                  Editar
+                                  Ver publicación
                                 </button>
-                                {/* Eliminar delegado al componente externo con callbacks */}
-                                <EliminarPublicacionButton
-                                  publicacion={pub}
-                                  onDeleted={() => setPublicaciones(prev => prev.filter(p => p.id !== pub.id))}
-                                  onSuccess={(msg) => setMensaje({ texto: msg, tipo: 'success' })}
-                                  onError={(msg) => setMensaje({ texto: msg, tipo: 'error' })}
-                                />
+
                               </div>
                             </div>
                           </div>
@@ -611,6 +718,8 @@ const ClienteDashboard = () => {
                 )}
               </div>
             )}
+
+            {/* HISTORIAL DE PUBLICACIONES - removido */}
 
             {/* FORMULARIO DE CREACIÓN */}
             {pubSubview === 'create' && (

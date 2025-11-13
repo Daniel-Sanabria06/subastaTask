@@ -3,6 +3,7 @@
 
 import { supabase } from './cliente.js';
 import { obtenerUsuarioActual } from './autenticacion.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * CATEGORÍAS PREDEFINIDAS DE SERVICIO
@@ -36,26 +37,99 @@ export const CATEGORIAS_SERVICIO = [
  * Retorna las publicaciones pertenecientes al usuario actual con perfil de cliente,
  * ordenadas por fecha de creación descendente.
  *
+ * @param {Object} options - Opciones de filtrado
+ * @param {boolean} [options.soloActivas=false] - Si es true, solo devuelve publicaciones activas
+ * @param {string} [options.categoria] - Filtrar por categoría específica
+ * @param {string} [options.estado] - Filtrar por estado ('activa', 'con_ofertas', 'finalizada', 'eliminada')
+ * @param {string} [options.ordenarPor='fecha'] - Campo por el cual ordenar ('fecha', 'categoria')
  * @returns {Promise<{success: boolean, data: any[] | null, error: Error | null}>}
  */
-export const listarPublicacionesCliente = async () => {
+// Helpers de validación y manejo de errores
+const normalizarError = (error) => (error instanceof Error ? error : new Error(String(error)));
+const validarCampoObligatorio = (valor, nombre) => {
+  if (valor === null || valor === undefined || (typeof valor === 'string' && valor.trim() === '')) {
+    throw new Error(`El campo ${nombre} es obligatorio`);
+  }
+};
+
+export const listarPublicacionesCliente = async (options = {}) => {
   try {
-    const usuario = await obtenerUsuarioActual();
-    if (!usuario.success) throw new Error('Usuario no autenticado');
-    if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden listar sus publicaciones');
+    const { data: { user }, error: errorAuth } = await supabase.auth.getUser();
+    if (errorAuth || !user) throw new Error('Usuario no autenticado');
 
-    const { data, error } = await supabase
+    // Iniciar la consulta base
+    let query = supabase
       .from('publicaciones')
-      .select('*')
-      .eq('cliente_id', usuario.data.user.id)
-      .eq('activa', true)
-      .order('created_at', { ascending: false });
-
+      .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, activa, created_at, updated_at')
+      .eq('cliente_id', user.id);
+    
+    // Aplicar filtros según las opciones
+    if (options.soloActivas) {
+      query = query.eq('activa', true);
+    }
+    
+    if (options.categoria && options.categoria !== 'todas') {
+      query = query.eq('categoria', options.categoria);
+    }
+    
+    // Ordenamiento
+    if (options.ordenarPor === 'categoria') {
+      query = query.order('categoria', { ascending: true }).order('created_at', { ascending: false });
+    } else {
+      // Por defecto ordenar por fecha
+      query = query.order('created_at', { ascending: false });
+    }
+    
+    // Ejecutar la consulta
+    const { data, error } = await query;
     if (error) throw error;
-    return { success: true, data, error: null };
+
+    // Consultar ofertas del cliente para marcar estados
+    const { data: ofertasTodas, error: errorOfertas } = await supabase
+      .from('ofertas')
+      .select('publicacion_id')
+      .eq('cliente_id', user.id);
+    if (errorOfertas) throw errorOfertas;
+    const setConOfertas = new Set((ofertasTodas || []).map(o => o.publicacion_id));
+
+    const { data: ofertasAceptadas, error: errorAceptadas } = await supabase
+      .from('ofertas')
+      .select('publicacion_id')
+      .eq('cliente_id', user.id)
+      .eq('estado', 'aceptada');
+    if (errorAceptadas) throw errorAceptadas;
+    const setAceptadas = new Set((ofertasAceptadas || []).map(o => o.publicacion_id));
+
+    // Procesar los resultados para determinar el estado real de cada publicación
+    const publicacionesConEstado = data.map(pub => {
+      let estado = 'activa';
+      if (pub.activa) {
+        estado = setConOfertas.has(pub.id) ? 'con_ofertas' : 'activa';
+      } else {
+        estado = setAceptadas.has(pub.id) ? 'finalizada' : 'eliminada';
+      }
+      return {
+        ...pub,
+        estado_calculado: estado,
+        tiene_ofertas: setConOfertas.has(pub.id)
+      };
+    });
+
+    // Filtrar por estado si se especificó
+    let resultadosFiltrados = publicacionesConEstado;
+    if (options.estado && options.estado !== 'todas') {
+      resultadosFiltrados = publicacionesConEstado.filter(pub => pub.estado_calculado === options.estado);
+    }
+
+    return { success: true, data: resultadosFiltrados, error: null };
   } catch (error) {
-    console.error('Error al listar publicaciones:', error);
-    return { success: false, data: null, error };
+    logger.error('Error al listar publicaciones:', {
+      function: 'listarPublicacionesCliente',
+      userId: undefined,
+      error: normalizarError(error).message,
+      timestamp: new Date().toISOString()
+    });
+    return { success: false, data: null, error: normalizarError(error) };
   }
 };
 
@@ -87,11 +161,13 @@ export const crearPublicacion = async ({
     if (!usuario.success) throw new Error('Usuario no autenticado');
     if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden crear publicaciones');
 
-    // Validaciones básicas en frontend
-    const campos = { titulo, descripcion, categoria, ciudad, precio_maximo };
-    for (const [k, v] of Object.entries(campos)) {
-      if (!v && v !== 0) throw new Error(`El campo ${k} es obligatorio`);
-    }
+    // Validaciones robustas en frontend
+    validarCampoObligatorio(titulo, 'titulo');
+    validarCampoObligatorio(descripcion, 'descripcion');
+    validarCampoObligatorio(categoria, 'categoria');
+    validarCampoObligatorio(ciudad, 'ciudad');
+    validarCampoObligatorio(precio_maximo, 'precio_maximo');
+
     if (categoria === 'OTRO' && (!categoria_otro || categoria_otro.trim().length < 3)) {
       throw new Error('Especifica la categoría en "Otro" con al menos 3 caracteres');
     }
@@ -102,11 +178,11 @@ export const crearPublicacion = async ({
 
     const payload = {
       cliente_id: usuario.data.user.id,
-      titulo: titulo.trim(),
-      descripcion: descripcion.trim(),
+      titulo: String(titulo).trim(),
+      descripcion: String(descripcion).trim(),
       categoria,
-      categoria_otro: categoria === 'OTRO' ? categoria_otro?.trim() || null : null,
-      ciudad: ciudad.trim(),
+      categoria_otro: categoria === 'OTRO' ? (categoria_otro?.trim() || null) : null,
+      ciudad: String(ciudad).trim(),
       precio_maximo: precioNum,
       activa: !!activa
     };
@@ -120,8 +196,13 @@ export const crearPublicacion = async ({
     if (error) throw error;
     return { success: true, data, error: null };
   } catch (error) {
-    console.error('Error al crear publicación:', error);
-    return { success: false, data: null, error };
+    logger.error('Error al crear publicación:', {
+      function: 'crearPublicacion',
+      userId: undefined,
+      error: normalizarError(error).message,
+      timestamp: new Date().toISOString()
+    });
+    return { success: false, data: null, error: normalizarError(error) };
   }
 };
 
@@ -163,8 +244,13 @@ export const listarPublicacionesActivas = async (filtros = {}) => {
     if (error) throw error;
     return { success: true, data, error: null };
   } catch (error) {
-    console.error('Error al listar publicaciones activas:', error);
-    return { success: false, data: null, error };
+    logger.error('Error al listar publicaciones activas:', {
+      function: 'listarPublicacionesActivas',
+      userId: undefined,
+      error: normalizarError(error).message,
+      timestamp: new Date().toISOString()
+    });
+    return { success: false, data: null, error: normalizarError(error) };
   }
 };
 
@@ -189,8 +275,13 @@ export const obtenerPublicacionPorId = async (idpublicacion) => {
     if (error) throw error;
     return { success: true, data, error: null };
   } catch (error) {
-    console.error('Error al obtener publicación por ID:', error);
-    return { success: false, data: null, error };
+    logger.error('Error al obtener publicación por ID:', {
+      function: 'obtenerPublicacionPorId',
+      userId: undefined,
+      error: normalizarError(error).message,
+      timestamp: new Date().toISOString()
+    });
+    return { success: false, data: null, error: normalizarError(error) };
   }
 };
 
@@ -209,11 +300,13 @@ export const actualizarPublicacion = async (id, {
     if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden actualizar publicaciones');
     if (!id) throw new Error('ID de la publicación es requerido');
 
-    // Validaciones similares a crear
-    const campos = { titulo, descripcion, categoria, ciudad, precio_maximo };
-    for (const [k, v] of Object.entries(campos)) {
-      if (!v && v !== 0) throw new Error(`El campo ${k} es obligatorio`);
-    }
+    // Validaciones robustas similares a crear
+    validarCampoObligatorio(titulo, 'titulo');
+    validarCampoObligatorio(descripcion, 'descripcion');
+    validarCampoObligatorio(categoria, 'categoria');
+    validarCampoObligatorio(ciudad, 'ciudad');
+    validarCampoObligatorio(precio_maximo, 'precio_maximo');
+
     if (categoria === 'OTRO' && (!categoria_otro || categoria_otro.trim().length < 3)) {
       throw new Error('Especifica la categoría en "Otro" con al menos 3 caracteres');
     }
@@ -242,8 +335,13 @@ export const actualizarPublicacion = async (id, {
     if (error) throw error;
     return { success: true, data, error: null };
   } catch (error) {
-    console.error('Error al actualizar publicación:', error);
-    return { success: false, data: null, error };
+    logger.error('Error al actualizar publicación:', {
+      function: 'actualizarPublicacion',
+      userId: undefined,
+      error: normalizarError(error).message,
+      timestamp: new Date().toISOString()
+    });
+    return { success: false, data: null, error: normalizarError(error) };
   }
 };
 
@@ -255,16 +353,24 @@ export const eliminarPublicacion = async (id) => {
     if (usuario.data.profile.type !== 'cliente') throw new Error('Solo clientes pueden eliminar publicaciones');
     if (!id) throw new Error('ID de la publicación es requerido');
 
-    const { error } = await supabase
+    // Soft delete: marcar como inactiva
+    const { data, error } = await supabase
       .from('publicaciones')
-      .delete()
+      .update({ activa: false })
       .eq('id', id)
-      .eq('cliente_id', usuario.data.user.id);
+      .eq('cliente_id', usuario.data.user.id)
+      .select()
+      .single();
 
     if (error) throw error;
-    return { success: true, data: null, error: null };
+    return { success: true, data, error: null };
   } catch (error) {
-    console.error('Error al eliminar publicación:', error);
-    return { success: false, data: null, error };
+    logger.error('Error al eliminar publicación:', {
+      function: 'eliminarPublicacion',
+      userId: undefined,
+      error: normalizarError(error).message,
+      timestamp: new Date().toISOString()
+    });
+    return { success: false, data: null, error: normalizarError(error) };
   }
 };
