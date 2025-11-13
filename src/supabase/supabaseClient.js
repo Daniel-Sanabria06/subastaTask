@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '../utils/logger.js'
 
 // Inicializar el cliente de Supabase con la URL y clave desde variables de entorno
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -98,7 +99,7 @@ export const registerUser = async (formData) => {
       try {
         await supabase.functions.invoke('delete_users', { body: { user_id: authData.user.id } });
       } catch (rollbackErr) {
-        console.warn('Rollback de usuario en Auth falló:', rollbackErr);
+        logger.warn('Rollback de usuario en Auth falló:', rollbackErr);
       }
       return { success: false, error: profileError };
     }

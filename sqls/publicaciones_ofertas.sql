@@ -74,7 +74,7 @@ create table if not exists public.ofertas (
   trabajador_id uuid not null references public.trabajadores(id) on delete cascade,
   monto_oferta numeric(12,2) not null check (monto_oferta >= 0),
   mensaje text not null,
-  estado varchar(20) not null default 'pendiente' check (estado in ('pendiente','aceptada','rechazada','retirada')),
+  estado varchar(20) not null default 'pendiente' check (estado in ('pendiente','aceptada','rechazada','retirada','finalizada')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint ofertas_publicacion_cliente_fk
