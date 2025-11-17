@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { obtenerUsuarioActual, cerrarSesion } from '../supabase/autenticacion';
 import '../styles/Header.css';
 import logo from '../assets/logo.png';
+import NotificationBell from './NotificationBell';
 
 const Header = () => {
   const [user, setUser] = useState(null);
@@ -119,6 +120,7 @@ const Header = () => {
               <div className="loading-indicator">Cargando...</div>
             ) : user ? (
               <>
+                <NotificationBell />
                 <Link 
                   to="/chats" 
                   className="btn btn-chats"
