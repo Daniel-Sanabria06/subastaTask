@@ -28,6 +28,7 @@ import ChatsListPage from './private_pages/ChatsListPage';
 import ChatPage from './private_pages/ChatPage';
 import PerfilCliente from './public_pages/PerfilCliente';
 import PerfilTrabajador from './public_pages/PerfilTrabajador';
+import Notifications from './private_pages/Notifications';
 
 // Estilos
 import './App.css';
@@ -186,6 +187,23 @@ function App() {
                 </RoleRoute>
               } 
             />
+              <Route 
+              path="/chats/:idchat" 
+              element={
+                <RoleRoute allow={["cliente", "trabajador"]}>
+                  <ChatPage />
+                </RoleRoute>
+              } 
+            />
+            {/* NUEVO: página de notificaciones */}
+            <Route 
+              path="/notificaciones" 
+              element={
+                <RoleRoute allow={["cliente", "trabajador"]}>
+                  <Notifications />
+                </RoleRoute>
+              } 
+              />
           </Routes>
         </main>
         <Footer />

@@ -13,6 +13,9 @@
   --accent-hover: #256bbd;
   --accent-gold: #d4af37; /* Dorado suave para detalles navideños */
   --snow: #f8fbff;
+  /* Texto específico para burbujas verdes de mensajes enviados */
+  --bubble-sent-text: #0a2540;
+  --bubble-sent-time: #2c3e50;
 }
 
 [data-theme="dark"] {
@@ -26,6 +29,9 @@
   --accent-hover: #4a9aff;
   --accent-gold: #e0c060;
   --snow: #0e1828;
+  /* Mantener texto oscuro sobre verde claro incluso en tema oscuro */
+  --bubble-sent-text: #0a2540;
+  --bubble-sent-time: #044d95;
 }
 
 /* === Animaciones mejoradas === */
