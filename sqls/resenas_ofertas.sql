@@ -67,8 +67,9 @@ CREATE POLICY "Reseñas no eliminables" ON public.resenas_ofertas
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT SELECT, INSERT ON public.resenas_ofertas TO authenticated;
 -- También concedemos a 'anon' por si el cliente aún no está autenticado al abrir la vista
-GRANT USAGE ON SCHEMA public TO anon;
-GRANT SELECT ON public.resenas_ofertas TO anon;
+-- Se deshabilita acceso público (anon) innecesario para reseñas
+REVOKE USAGE ON SCHEMA public FROM anon;
+REVOKE SELECT ON public.resenas_ofertas FROM anon;
 
 -- Sugerencia: actualizar calificación promedio del perfil del trabajador (opcional)
 -- Se puede implementar un trigger que recalcule promedio en perfil_trabajador

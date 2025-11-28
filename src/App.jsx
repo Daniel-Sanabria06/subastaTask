@@ -24,6 +24,8 @@ import AdminPanel from './admin/AdminPanel';
 import ComoFunciona from './public_pages/ComoFunciona';
 import Servicios from './public_pages/Servicios';
 import Contacto from './public_pages/Contacto';
+import Terminos from './public_pages/Terminos';
+import Privacidad from './public_pages/Privacidad';
 import ChatsListPage from './private_pages/ChatsListPage';
 import ChatPage from './private_pages/ChatPage';
 import PerfilCliente from './public_pages/PerfilCliente';
@@ -114,6 +116,8 @@ function App() {
             <Route path="/contacto" element={<Contacto />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/terminos" element={<Terminos />} />
+            <Route path="/privacidad" element={<Privacidad />} />
             <Route 
               path="/cliente/dashboard" 
               element={

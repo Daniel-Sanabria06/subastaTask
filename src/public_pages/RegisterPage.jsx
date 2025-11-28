@@ -28,7 +28,8 @@ const RegisterPage = () => {
     // Campos adicionales para trabajadores
     profesion: '',
     habilidades: '',
-    telefono: ''
+    telefono: '',
+    aceptaTerminos: false
   });
 
   useEffect(() => {
@@ -53,7 +54,7 @@ const RegisterPage = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
 
     // Solo para el campo "documento": permitir solo números
     if (name === 'documento') {
@@ -61,7 +62,7 @@ const RegisterPage = () => {
       setFormData(prev => ({ ...prev, [name]: soloNumeros }));
     } else {
       setFormData(prev => {
-        const updatedData = { ...prev, [name]: value };
+        const updatedData = { ...prev, [name]: type === 'checkbox' ? !!checked : value };
         
         // Validar contraseña mientras se escribe
         if (name === 'password' || name === 'confirmPassword') {
@@ -93,6 +94,17 @@ const RegisterPage = () => {
         text: 'Las contraseñas no coinciden',
         icon: 'error',
         confirmButtonText: 'Intentar de nuevo',
+        confirmButtonColor: "#3a86ff"
+      });
+      return;
+    }
+
+    if (!formData.aceptaTerminos) {
+      Swal.fire({
+        title: 'Términos y Condiciones',
+        text: 'Debes aceptar los Términos y Condiciones para registrarte.',
+        icon: 'warning',
+        confirmButtonText: 'Entendido',
         confirmButtonColor: "#3a86ff"
       });
       return;
@@ -342,6 +354,26 @@ const RegisterPage = () => {
                     Trabajador
                   </label>
                 </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="aceptaTerminos" className="form-label">
+                Aceptación de Términos
+              </label>
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="aceptaTerminos"
+                  name="aceptaTerminos"
+                  checked={formData.aceptaTerminos}
+                  onChange={handleChange}
+                  className="checkbox"
+                  required
+                />
+                <p className="text-sm">
+                  Acepto los <Link to="/terminos" className="link-primary" target="_blank">Términos y Condiciones</Link> y la <Link to="/privacidad" className="link-primary" target="_blank">Política de Privacidad</Link>.
+                </p>
               </div>
             </div>
 
