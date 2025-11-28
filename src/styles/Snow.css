@@ -1,0 +1,31 @@
+/* Snow.css */
+#snow-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 10000;
+    overflow: hidden;
+  }
+  
+  .snowflake {
+    position: absolute;
+    background-color: var(--snow-color, #b3d9ff);
+    border-radius: 50%;
+    opacity: 0.85;
+    pointer-events: none;
+    animation: fall linear infinite;
+  }
+  
+  @keyframes fall {
+    to {
+      transform: translateY(100vh) rotate(360deg);
+    }
+  }
+  
+  /* Modo oscuro */
+  [data-theme="dark"] .snowflake {
+    background-color: var(--snow-color, #ffffff);
+  }
