@@ -52,6 +52,13 @@ BEGIN
     SET estado = p_new_status, updated_at = now()
     WHERE id = v_oferta_id;
     
+    -- Si se acepta: cerrar publicación (activa=false) y registrar fecha_cierre
+    IF p_new_status = 'aceptada' THEN
+        UPDATE public.publicaciones p
+        SET activa = false, fecha_cierre = now(), updated_at = now()
+        WHERE p.id = (SELECT publicacion_id FROM public.ofertas WHERE id = v_oferta_id);
+    END IF;
+
     -- Desactivar el chat SOLO si se rechaza
     IF p_new_status = 'rechazada' THEN
         UPDATE public.chats
@@ -61,7 +68,7 @@ BEGIN
     
     -- Determinar el mensaje del sistema
     IF p_new_status = 'aceptada' THEN
-        v_message_content = '✅ Oferta aceptada. Pueden coordinar los detalles aquí.';
+        v_message_content = '✅ Oferta aceptada. La publicación ha sido cerrada automáticamente para nuevas ofertas. Pueden coordinar los detalles aquí.';
     ELSE
         v_message_content = '❌ La oferta ha sido rechazada. El chat se cerrará para evitar más mensajes.';
     END IF;

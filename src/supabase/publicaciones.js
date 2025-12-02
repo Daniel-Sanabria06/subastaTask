@@ -58,10 +58,10 @@ export const listarPublicacionesCliente = async (options = {}) => {
     if (errorAuth || !user) throw new Error('Usuario no autenticado');
 
     // Iniciar la consulta base
-    let query = supabase
-      .from('publicaciones')
-      .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, activa, created_at, updated_at')
-      .eq('cliente_id', user.id);
+  let query = supabase
+    .from('publicaciones')
+    .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, fecha_cierre, activa, created_at, updated_at')
+    .eq('cliente_id', user.id);
     
     // Aplicar filtros según las opciones
     if (options.soloActivas) {
@@ -96,17 +96,20 @@ export const listarPublicacionesCliente = async (options = {}) => {
       .from('ofertas')
       .select('publicacion_id')
       .eq('cliente_id', user.id)
-      .eq('estado', 'aceptada');
+      .in('estado', ['aceptada','finalizada']);
     if (errorAceptadas) throw errorAceptadas;
     const setAceptadas = new Set((ofertasAceptadas || []).map(o => o.publicacion_id));
 
     // Procesar los resultados para determinar el estado real de cada publicación
     const publicacionesConEstado = data.map(pub => {
       let estado = 'activa';
-      if (pub.activa) {
+      // Si existe una oferta aceptada/finalizada, la publicación se considera finalizada
+      if (setAceptadas.has(pub.id)) {
+        estado = 'finalizada';
+      } else if (pub.activa) {
         estado = setConOfertas.has(pub.id) ? 'con_ofertas' : 'activa';
       } else {
-        estado = setAceptadas.has(pub.id) ? 'finalizada' : 'eliminada';
+        estado = 'eliminada';
       }
       return {
         ...pub,
@@ -154,6 +157,7 @@ export const crearPublicacion = async ({
   categoria_otro,
   ciudad,
   precio_maximo,
+  fecha_cierre,
   activa = true
 }) => {
   try {
@@ -167,6 +171,19 @@ export const crearPublicacion = async ({
     validarCampoObligatorio(categoria, 'categoria');
     validarCampoObligatorio(ciudad, 'ciudad');
     validarCampoObligatorio(precio_maximo, 'precio_maximo');
+    // Fecha de cierre opcional: si viene, validar que sea válida y futura
+    let fechaISO = null;
+    if (fecha_cierre !== undefined && fecha_cierre !== null && String(fecha_cierre).trim() !== '') {
+      const fechaObj = new Date(fecha_cierre);
+      if (isNaN(fechaObj.getTime())) {
+        throw new Error('La fecha de cierre no es válida');
+      }
+      const ahora = new Date();
+      if (fechaObj <= ahora) {
+        throw new Error('La fecha de cierre debe ser futura');
+      }
+      fechaISO = fechaObj.toISOString();
+    }
 
     if (categoria === 'OTRO' && (!categoria_otro || categoria_otro.trim().length < 3)) {
       throw new Error('Especifica la categoría en "Otro" con al menos 3 caracteres');
@@ -184,6 +201,8 @@ export const crearPublicacion = async ({
       categoria_otro: categoria === 'OTRO' ? (categoria_otro?.trim() || null) : null,
       ciudad: String(ciudad).trim(),
       precio_maximo: precioNum,
+      // fecha_cierre ahora es opcional
+      ...(fechaISO !== null ? { fecha_cierre: fechaISO } : {}),
       activa: !!activa
     };
 
@@ -222,11 +241,11 @@ export const listarPublicacionesActivas = async (filtros = {}) => {
     if (!usuario.success) throw new Error('Usuario no autenticado');
     if (usuario.data.profile.type !== 'trabajador') throw new Error('Solo trabajadores pueden listar publicaciones activas');
 
-    let query = supabase
-      .from('publicaciones')
-      .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, activa, created_at')
-      .eq('activa', true)
-      .order('created_at', { ascending: false });
+  let query = supabase
+    .from('publicaciones')
+    .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, fecha_cierre, activa, created_at')
+    .eq('activa', true)
+    .order('created_at', { ascending: false });
 
     const { categoria, ciudadTexto, q } = filtros;
     if (categoria) query = query.eq('categoria', categoria);
@@ -242,7 +261,36 @@ export const listarPublicacionesActivas = async (filtros = {}) => {
 
     const { data, error } = await query;
     if (error) throw error;
-    return { success: true, data, error: null };
+
+    // Calcular estado_calculado para trabajadores:
+    // Si la publicación tiene una oferta aceptada/finalizada o está cerrada por fecha, se considera "finalizada".
+    const pubIds = (data || []).map(p => p.id);
+    let setAceptadasFinalizadas = new Set();
+    if (pubIds.length > 0) {
+      try {
+        const { data: ofertasAF, error: errAF } = await supabase
+          .from('ofertas')
+          .select('publicacion_id')
+          .in('publicacion_id', pubIds)
+          .in('estado', ['aceptada', 'finalizada']);
+        if (!errAF && Array.isArray(ofertasAF)) {
+          setAceptadasFinalizadas = new Set(ofertasAF.map(o => o.publicacion_id));
+        }
+      } catch (e) {
+        // Si por políticas de RLS no se permite leer, continuar sin marcar por ofertas
+        setAceptadasFinalizadas = new Set();
+      }
+    }
+
+    const ahora = new Date();
+    const enriquecidas = (data || []).map(pub => {
+      const cerradaPorFecha = pub?.fecha_cierre ? (new Date(pub.fecha_cierre) <= ahora) : false;
+      const cerradaPorOferta = setAceptadasFinalizadas.has(pub.id);
+      const estado = (cerradaPorFecha || cerradaPorOferta) ? 'finalizada' : (pub.activa ? 'activa' : 'eliminada');
+      return { ...pub, estado_calculado: estado, cerrada_por_oferta: cerradaPorOferta };
+    });
+
+    return { success: true, data: enriquecidas, error: null };
   } catch (error) {
     logger.error('Error al listar publicaciones activas:', {
       function: 'listarPublicacionesActivas',
@@ -266,11 +314,11 @@ export const obtenerPublicacionPorId = async (idpublicacion) => {
     if (!usuario.success) throw new Error('Usuario no autenticado');
     if (!idpublicacion) throw new Error('idpublicacion es requerido');
 
-    const { data, error } = await supabase
-      .from('publicaciones')
-      .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, activa, created_at, updated_at')
-      .eq('id', idpublicacion)
-      .single();
+  const { data, error } = await supabase
+    .from('publicaciones')
+    .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, fecha_cierre, activa, created_at, updated_at')
+    .eq('id', idpublicacion)
+    .single();
 
     if (error) throw error;
     return { success: true, data, error: null };
@@ -292,7 +340,8 @@ export const actualizarPublicacion = async (id, {
   categoria,
   categoria_otro,
   ciudad,
-  precio_maximo
+  precio_maximo,
+  fecha_cierre
 }) => {
   try {
     const usuario = await obtenerUsuarioActual();
@@ -306,6 +355,24 @@ export const actualizarPublicacion = async (id, {
     validarCampoObligatorio(categoria, 'categoria');
     validarCampoObligatorio(ciudad, 'ciudad');
     validarCampoObligatorio(precio_maximo, 'precio_maximo');
+    // Fecha de cierre opcional: si viene, validar que sea válida y futura
+    let fechaISO;
+    if (fecha_cierre !== undefined) {
+      if (fecha_cierre === null || String(fecha_cierre).trim() === '') {
+        // si se manda vacía, no actualizar el campo
+        fechaISO = undefined;
+      } else {
+        const fechaObj = new Date(fecha_cierre);
+        if (isNaN(fechaObj.getTime())) {
+          throw new Error('La fecha de cierre no es válida');
+        }
+        const ahora = new Date();
+        if (fechaObj <= ahora) {
+          throw new Error('La fecha de cierre debe ser futura');
+        }
+        fechaISO = fechaObj.toISOString();
+      }
+    }
 
     if (categoria === 'OTRO' && (!categoria_otro || categoria_otro.trim().length < 3)) {
       throw new Error('Especifica la categoría en "Otro" con al menos 3 caracteres');
@@ -321,7 +388,9 @@ export const actualizarPublicacion = async (id, {
       categoria,
       categoria_otro: categoria === 'OTRO' ? (categoria_otro?.trim() || null) : null,
       ciudad: String(ciudad).trim(),
-      precio_maximo: precioNum
+      precio_maximo: precioNum,
+      // incluir fecha_cierre solo si corresponde
+      ...(fechaISO !== undefined ? { fecha_cierre: fechaISO } : {})
     };
 
     const { data, error } = await supabase

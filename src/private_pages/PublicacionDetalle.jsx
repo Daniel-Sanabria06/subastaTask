@@ -11,6 +11,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { obtenerUsuarioActual } from '../supabase/autenticacion.js';
 import { obtenerPublicacionPorId } from '../supabase/publicaciones.js';
 import { listarOfertasClientePorPublicacion } from '../supabase/ofertas.js';
+import { existeOfertaAceptadaOFinalizadaEnPublicacion } from '../supabase/ofertas.js';
 import { obtenerChatPorOferta, crearChat } from '../supabase/chat.js';
 import '../styles/Dashboard.css';
 import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supabase/ofertas.js';
@@ -30,6 +31,7 @@ import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supaba
   const [ofertaForm, setOfertaForm] = useState({ monto_oferta: '', mensaje: '' });
   const [ofertaSaving, setOfertaSaving] = useState(false);
   const [ultimaOfertaCreada, setUltimaOfertaCreada] = useState(null);
+  const [tieneAceptadaFinalizada, setTieneAceptadaFinalizada] = useState(false);
 
   // Abre o crea el chat asociado a una oferta de la publicación.
   // Si existe chat, navega; si no, crea uno con cliente y trabajador de la oferta.
@@ -87,6 +89,15 @@ import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supaba
             if (res.success) setOfertas(res.data || []);
           } finally {
             setOfertasLoading(false);
+          }
+        } else if (u.data.profile?.type === 'trabajador') {
+          // Para el trabajador: verificar si ya hay oferta aceptada/finalizada
+          try {
+            const r = await existeOfertaAceptadaOFinalizadaEnPublicacion(idpublicacion);
+            if (r.success) setTieneAceptadaFinalizada(Boolean(r.data));
+          } catch (e) {
+            // Si no se puede verificar por políticas, mantener false y permitir por fecha
+            setTieneAceptadaFinalizada(false);
           }
         }
       } catch (err) {
@@ -157,6 +168,18 @@ import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supaba
 
   if (cargando) return <div className="loading-container"><div className="spinner"></div><p>Cargando publicación...</p></div>;
   if (!pub) return <div className="loading-container"><p>No se encontró la publicación</p></div>;
+  const cerradaPorFecha = pub?.fecha_cierre ? (new Date(pub.fecha_cierre) <= new Date()) : false;
+  const hayAceptadaFinalizada = usuario?.profile?.type === 'cliente'
+    ? (ofertas || []).some(o => o.estado === 'aceptada' || o.estado === 'finalizada')
+    : !!tieneAceptadaFinalizada;
+  const cerrada = cerradaPorFecha || hayAceptadaFinalizada;
+  const hayOfertasPendientes = (ofertas || []).some(o => o.estado === 'pendiente');
+  const estadoTexto = (() => {
+    if (!pub?.activa) return 'Eliminada';
+    if (cerrada) return 'Finalizada';
+    return hayOfertasPendientes ? 'Con ofertas' : 'Activa';
+  })();
+  const estadoClass = estadoTexto === 'Activa' ? 'status-active' : (estadoTexto === 'Con ofertas' ? 'status-with-offers' : 'status-inactive');
 
   return (
     <div className="dashboard-container animate-fade-in">
@@ -172,15 +195,21 @@ import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supaba
         <div className="item-card">
           <div className="item-card-header">
             <h3 className="item-title">{pub.titulo}</h3>
-            <span className={`status-badge ${pub.activa ? 'status-active' : 'status-inactive'}`}>{pub.activa ? 'Activa' : 'Inactiva'}</span>
+            <span className={`status-badge ${estadoClass}`}>{estadoTexto}</span>
           </div>
           <div className="meta-row">
             <div className="meta-item"><span className="label">Categoría:</span> {pub.categoria === 'OTRO' ? `Otro (${pub.categoria_otro || ''})` : pub.categoria}</div>
             <div className="meta-item"><span className="label">Ciudad:</span> {pub.ciudad}</div>
             <div className="meta-item"><span className="label">Precio máximo:</span> $ {Number(pub.precio_maximo).toLocaleString('es-CO')} COP</div>
             <div className="meta-item"><span className="label">Fecha:</span> {new Date(pub.created_at).toLocaleString('es-CO')}</div>
+            {pub.fecha_cierre && (
+              <div className="meta-item"><span className="label">Cierra:</span> {new Date(pub.fecha_cierre).toLocaleString('es-CO')}</div>
+            )}
           </div>
           <p className="item-desc" style={{ fontSize: '1rem' }}>{pub.descripcion}</p>
+          {cerrada && (
+            <div className="form-error" style={{ marginTop: 8 }}>Publicación cerrada; no se reciben más ofertas.</div>
+          )}
         </div>
 
         {usuario?.profile?.type === 'cliente' && (
@@ -244,8 +273,8 @@ import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supaba
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 className="btn btn-success"
-                title={cuentaOfertas >= 3 ? 'Has alcanzado el máximo de 3 ofertas' : 'Enviar otra propuesta'}
-                disabled={countLoading || cuentaOfertas >= 3}
+                title={cerrada ? 'Publicación cerrada' : (cuentaOfertas >= 3 ? 'Has alcanzado el máximo de 3 ofertas' : 'Enviar otra propuesta')}
+                disabled={countLoading || cuentaOfertas >= 3 || cerrada}
                 onClick={() => setMostrarForm((v) => !v)}
               >
                 ➕ Enviar otra propuesta ({cuentaOfertas}/3)
@@ -253,7 +282,7 @@ import { crearOferta, contarOfertasDelTrabajadorPorPublicacion } from '../supaba
             </div>
           </div>
         )}
-        {usuario?.profile?.type === 'trabajador' && mostrarForm && pub?.activa && (
+        {usuario?.profile?.type === 'trabajador' && mostrarForm && pub?.activa && !cerrada && (
           <div className="item-card" style={{ marginTop: 8 }}>
             <h4 className="item-title">Nueva propuesta</h4>
             <form onSubmit={enviarOferta} className="profile-form">

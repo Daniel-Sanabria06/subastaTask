@@ -3,6 +3,7 @@
 
 import { supabase } from './cliente.js';
 import { obtenerUsuarioActual } from './autenticacion.js';
+import { obtenerPublicacionPorId } from './publicaciones.js';
 
 /**
  * LISTAR OFERTAS DEL TRABAJADOR AUTENTICADO
@@ -61,6 +62,23 @@ export const crearOferta = async ({ publicacion_id, cliente_id, monto_oferta, me
       .eq('publicacion_id', publicacion_id);
     if (countError) throw countError;
     if ((count ?? 0) >= 3) throw new Error('Has alcanzado el máximo de 3 ofertas para esta publicación');
+
+    // Verificar estado de la publicación (activa y no expirada)
+    const pubRes = await obtenerPublicacionPorId(publicacion_id);
+    if (!pubRes.success || !pubRes.data) throw new Error('No se pudo obtener la publicación');
+    const pub = pubRes.data;
+    if (!pub.activa) throw new Error('La publicación no está activa');
+    if (pub.fecha_cierre) {
+      const ahora = new Date();
+      const cierre = new Date(pub.fecha_cierre);
+      if (!Number.isFinite(cierre.getTime())) {
+        // Si la fecha está corrupta en BD, prevenir creación por seguridad
+        throw new Error('La publicación tiene una fecha de cierre inválida');
+      }
+      if (ahora >= cierre) {
+        throw new Error('La publicación está cerrada; no se reciben más ofertas');
+      }
+    }
 
     const payload = {
       publicacion_id,
@@ -152,12 +170,34 @@ export const existeOfertaAceptadaParaPublicacion = async (publicacion_id) => {
       .select('id', { count: 'exact', head: true })
       .eq('cliente_id', usuario.data.user.id)
       .eq('publicacion_id', publicacion_id)
-      .eq('estado', 'aceptada');
+      .in('estado', ['aceptada', 'finalizada']);
 
     if (error) throw error;
     return { success: true, data: (count ?? 0) > 0, error: null };
   } catch (error) {
     console.error('Error al verificar oferta aceptada por publicación:', error);
+    return { success: false, data: null, error };
+  }
+};
+
+// NUEVO: Verificar si una publicación tiene oferta aceptada/finalizada (acceso general)
+// Uso: vistas de trabajador para evitar nuevas ofertas cuando el cliente ya aceptó/finalizó.
+export const existeOfertaAceptadaOFinalizadaEnPublicacion = async (publicacion_id) => {
+  try {
+    const usuario = await obtenerUsuarioActual();
+    if (!usuario.success) throw new Error('Usuario no autenticado');
+    if (!publicacion_id) throw new Error('publicacion_id es requerido');
+
+    const { count, error } = await supabase
+      .from('ofertas')
+      .select('id', { count: 'exact', head: true })
+      .eq('publicacion_id', publicacion_id)
+      .in('estado', ['aceptada', 'finalizada']);
+
+    if (error) throw error;
+    return { success: true, data: (count ?? 0) > 0, error: null };
+  } catch (error) {
+    console.error('Error al verificar oferta aceptada/finalizada por publicación:', error);
     return { success: false, data: null, error };
   }
 };
