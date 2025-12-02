@@ -53,6 +53,7 @@ create table if not exists public.publicaciones (
   categoria_otro text null,
   ciudad varchar(100) not null,
   precio_maximo numeric(12,2) not null check (precio_maximo >= 0),
+  fecha_cierre timestamptz null,
   activa boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -90,6 +91,7 @@ create index if not exists idx_publicaciones_cliente on public.publicaciones(cli
 create index if not exists idx_publicaciones_ciudad on public.publicaciones(ciudad);
 create index if not exists idx_publicaciones_activa on public.publicaciones(activa);
 create index if not exists idx_publicaciones_categoria on public.publicaciones(categoria);
+create index if not exists idx_publicaciones_fecha_cierre on public.publicaciones(fecha_cierre);
 
 create index if not exists idx_ofertas_publicacion on public.ofertas(publicacion_id);
 create index if not exists idx_ofertas_trabajador on public.ofertas(trabajador_id);
@@ -169,6 +171,7 @@ create policy "Trabajadores insertan ofertas" on public.ofertas
     and exists (
       select 1 from public.publicaciones p
       where p.id = publicacion_id and p.activa = true
+        and (p.fecha_cierre is null or now() < p.fecha_cierre)
     )
   );
 

@@ -25,7 +25,7 @@ import EliminarPublicacionButton from '../caracteristicas/publicaciones/Eliminar
 // HistorialPublicaciones removido; la funcionalidad de filtros está integrada en la lista
 import '../styles/Dashboard.css';
 
-const ClienteDashboard = () => {
+  const ClienteDashboard = () => {
   // ===========================================================================
   // ESTADOS DEL COMPONENTE
   // ===========================================================================
@@ -62,6 +62,7 @@ const ClienteDashboard = () => {
     categoria_otro: '',
     ciudad: '',
     precio_maximo: '',
+    fecha_cierre: '',
     activa: true
   });
   const [pubSaving, setPubSaving] = useState(false);
@@ -693,8 +694,8 @@ const ClienteDashboard = () => {
                           <div key={pub.id} className="item-card">
                             <div className="item-card-header">
                               <h3 className="item-title">{pub.titulo}</h3>
-                              <span className={`status-badge ${pub.activa ? 'status-active' : 'status-inactive'}`}>
-                                {pub.activa ? 'Activa' : 'Inactiva'}
+                              <span className={`status-badge ${getEstadoClass(pub)}`}>
+                                {getEstadoTexto(pub)}
                               </span>
                             </div>
                             {/* Metadatos con etiquetas claras */}
@@ -713,7 +714,7 @@ const ClienteDashboard = () => {
                               </div>
                               <div className="meta-item">
                                 <span className="label">Estado:</span>
-                                {pub.activa ? 'Activa' : 'Inactiva'}
+                                {getEstadoTexto(pub)}
                               </div>
                             </div>
                             <p className="item-desc">{pub.descripcion}</p>
@@ -729,14 +730,14 @@ const ClienteDashboard = () => {
                                 </button>
                               </div>
                               <div className="item-actions" style={{ display: 'flex', gap: 8 }}>
-                              
-{/* En "Eliminadas" (por filtro o por estado calculado del item) no se muestran Editar/Eliminar */}
-{(listFiltroEstado !== 'eliminada' || pub?.estado_calculado !== 'eliminada') && (
-  <> 
+
+{/* En publicaciones finalizadas o eliminadas NO se muestran Editar/Eliminar */}
+{(pub?.estado_calculado !== 'finalizada' && pub?.estado_calculado !== 'eliminada') && (
+  <>
     {/* Editar ahora solo abre el editor extraído */}
     <button
       className="btn btn-secondary"
-      onClick={() => { setEditingPub(pub.id); setPubSubview('edit'); }}
+      onClick={() => { setEditingPub(pub); setPubSubview('edit'); }}
     >
       Editar
     </button>
@@ -875,6 +876,8 @@ const ClienteDashboard = () => {
                     />
                     {pubErrors.precio_maximo && <div className="form-error">{pubErrors.precio_maximo}</div>}
                   </div>
+
+                  {/* Fecha de cierre eliminada: el cierre se gestiona automáticamente al finalizar la oferta */}
 
                   {/* Botón enviar */}
                   <div className="form-actions">
@@ -1181,3 +1184,30 @@ const ClienteDashboard = () => {
 };
 
 export default ClienteDashboard;
+  // Helpers de estado visual basado en estado_calculado
+  const getEstadoClass = (pub) => {
+    switch (pub?.estado_calculado) {
+      case 'con_ofertas':
+        return 'status-with-offers';
+      case 'finalizada':
+      case 'eliminada':
+        return 'status-inactive';
+      case 'activa':
+      default:
+        return 'status-active';
+    }
+  };
+
+  const getEstadoTexto = (pub) => {
+    switch (pub?.estado_calculado) {
+      case 'con_ofertas':
+        return 'Con ofertas';
+      case 'finalizada':
+        return 'Finalizada';
+      case 'eliminada':
+        return 'Eliminada';
+      case 'activa':
+      default:
+        return 'Activa';
+    }
+  };

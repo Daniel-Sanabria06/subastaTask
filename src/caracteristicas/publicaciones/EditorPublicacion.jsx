@@ -197,6 +197,8 @@ export default function EditorPublicacion({ publicacion, onCancel, onUpdated }) 
           {errors.precio_maximo && <div className="form-error">{errors.precio_maximo}</div>}
         </div>
 
+        {/* Fecha de cierre eliminada: el cierre se gestiona automáticamente al finalizar la oferta */}
+
         {/* Acciones del formulario */}
         <div className="form-actions">
           <button className="btn btn-primary" type="submit" disabled={saving}>
