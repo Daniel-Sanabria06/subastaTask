@@ -19,6 +19,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase, getTrabajadorPublico } from '../supabase/supabaseClient';
+import { obtenerEstadoVerificacionPublico, listarDocumentosTrabajador } from '../supabase/documentos';
 import { obtenerEstadisticasTrabajador, listarResenasRecientesTrabajador } from '../supabase/reviews';
 import '../styles/PerfilPublico.css';
 
@@ -29,6 +30,7 @@ const PerfilTrabajador = () => {
   const [error, setError] = useState(null);
   const [resenasStats, setResenasStats] = useState({ promedio: 0, total: 0 });
   const [resenasRecientes, setResenasRecientes] = useState([]);
+  const [verificado, setVerificado] = useState(false);
   
   // Obtener el ID del trabajador desde los parámetros de la URL
   const { id } = useParams();
@@ -47,6 +49,29 @@ const PerfilTrabajador = () => {
         
         if (data) {
           setTrabajador(data);
+          try {
+            const { success, data: vData } = await obtenerEstadoVerificacionPublico(data.id);
+            if (success) {
+              const flag = Boolean(
+                vData?.verificado ??
+                vData?.verified ??
+                vData?.isVerified ??
+                (Array.isArray(vData?.documentos) ? vData.documentos.some((d) => d.estado === 'aprobado') : undefined) ??
+                (vData?.estado === 'aprobado')
+              );
+              setVerificado(flag);
+            }
+          } catch {}
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.id === data.id) {
+              const { success: sDocs, data: lDocs } = await listarDocumentosTrabajador(data.id);
+              if (sDocs) {
+                const ok = Array.isArray(lDocs) && lDocs.some((d) => d.estado === 'aprobado');
+                if (ok) setVerificado(true);
+              }
+            }
+          } catch {}
         } else {
           console.warn('No se encontraron datos del trabajador');
           setError('Trabajador no encontrado');
@@ -221,6 +246,14 @@ const PerfilTrabajador = () => {
           <span className={`estado-cuenta ${estadoCuenta.clase}`}>
             {estadoCuenta.texto}
           </span>
+          {verificado && (
+            <span
+              className="estado-cuenta estado-activo"
+              style={{ marginLeft: 8, backgroundColor: '#22c55e', color: '#fff', borderRadius: 12, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              ✔️ Trabajador Verificado
+            </span>
+          )}
         </div>
 
         {/* Información del trabajador */}

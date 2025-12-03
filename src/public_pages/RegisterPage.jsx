@@ -31,6 +31,8 @@ const RegisterPage = () => {
     telefono: '',
     aceptaTerminos: false
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -254,7 +256,7 @@ const RegisterPage = () => {
                 Contraseña
               </label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 id="password"
                 name="password"
                 value={formData.password}
@@ -264,6 +266,9 @@ const RegisterPage = () => {
                 required
                 minLength="8"
               />
+              <button type="button" className="btn-secondary" onClick={() => setShowPassword((v) => !v)} style={{ marginTop: 6 }}>
+                {showPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
               <div className="password-validation mt-2 p-2 border rounded bg-gray-50">
                 <p className="text-sm font-semibold mb-2">La contraseña debe tener:</p>
                 <ul className="text-xs space-y-2">
@@ -306,7 +311,7 @@ const RegisterPage = () => {
                 Confirmar Contraseña
               </label>
               <input
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 id="confirmPassword"
                 name="confirmPassword"
                 value={formData.confirmPassword}
@@ -316,6 +321,9 @@ const RegisterPage = () => {
                 required
                 minLength="8"
               />
+              <button type="button" className="btn-secondary" onClick={() => setShowConfirmPassword((v) => !v)} style={{ marginTop: 6 }}>
+                {showConfirmPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
               {formData.confirmPassword && !passwordErrors.match && (
                 <p className="text-red-500 text-xs mt-1">Las contraseñas no coinciden</p>
               )}

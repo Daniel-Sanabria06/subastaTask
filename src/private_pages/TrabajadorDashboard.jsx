@@ -4,11 +4,12 @@ import { actualizarPerfilUsuario } from '../supabase/autenticacion';
 import { supabase } from '../supabase/cliente';
 import { useNavigate, useLocation } from 'react-router-dom';
 import TrabajadorProfileForm from '../components/TrabajadorProfileForm';
-import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+// import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
 import PrivacyLabel from '../components/PrivacyLabel';
 import { CATEGORIAS_SERVICIO, listarPublicacionesActivas } from '../supabase/publicaciones.js';
 import { crearOferta, listarOfertasTrabajador } from '../supabase/ofertas.js';
 import { obtenerChatPorOferta, crearChat } from '../supabase/chat.js';
+import { subirDocumentoPDF, listarDocumentosTrabajador, obtenerSignedUrlParaDocumento } from '../supabase/documentos.js';
 import { listarResenasTrabajadorPaginadas, obtenerEstadisticasTrabajador } from '../supabase/reviews';
 import '../styles/Dashboard.css';
 
@@ -42,6 +43,12 @@ import '../styles/Dashboard.css';
   const [reseñasPage, setReseñasPage] = useState(1);
   const [reseñasTotal, setReseñasTotal] = useState(0);
   const [reseñasStats, setReseñasStats] = useState({ promedio: 0, total: 0 });
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [documentos, setDocumentos] = useState([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docTipo, setDocTipo] = useState('identidad');
+  const [docFile, setDocFile] = useState(null);
   const [formData, setFormData] = useState({
     // Datos básicos del trabajador
     nombre_completo: '',
@@ -293,6 +300,37 @@ import '../styles/Dashboard.css';
     cargar();
   }, [activeTab, jobsSubview, filtros]);
 
+  useEffect(() => {
+    const cargarDocs = async () => {
+      if (activeTab !== 'perfil' || !userData?.user?.id) return;
+      try {
+        setDocsLoading(true);
+        const { success, data } = await listarDocumentosTrabajador(userData.user.id);
+        if (success) setDocumentos(data || []);
+      } finally {
+        setDocsLoading(false);
+      }
+    };
+    cargarDocs();
+  }, [activeTab, userData]);
+
+  // Suscribirse en tiempo real a cambios en documentos del trabajador
+  useEffect(() => {
+    if (!userData?.user?.id) return;
+    const channel = supabase
+      .channel(`docs-trab-${userData.user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'documentos_trabajador', filter: `trabajador_id=eq.${userData.user.id}` }, async () => {
+        try {
+          const { success, data } = await listarDocumentosTrabajador(userData.user.id);
+          if (success) setDocumentos(data || []);
+        } catch {}
+      })
+      .subscribe();
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [userData?.user?.id]);
+
   /**
    * EFECTO: CARGAR MIS OFERTAS CUANDO SE ABRE LA SUBVISTA
    */
@@ -365,6 +403,7 @@ const handleChange = (e) => {
     }
   };
 
+  const tieneDocActivo = Array.isArray(documentos) && documentos.some(d => d.estado === 'pendiente' || d.estado === 'aprobado');
   if (!userData) return <div className="loading-container">Cargando...</div>;
 
   return (
@@ -406,11 +445,18 @@ const handleChange = (e) => {
             </div>
           </div>
           {/* Mostrar si tiene perfil específico creado */}
-          <div className="profile-status">
+          <div className="profile-status" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {userData.specificProfile ? (
               <span className="status-badge success">✅ Perfil Profesional Completo</span>
             ) : (
               <span className="status-badge warning">⚠️ Perfil Profesional Pendiente</span>
+            )}
+            {Array.isArray(documentos) && documentos.some(d => d.estado === 'aprobado') ? (
+              <span className="status-badge success">✔️ Trabajador Verificado</span>
+            ) : (
+              Array.isArray(documentos) && documentos.some(d => d.estado === 'pendiente') && (
+                <span className="status-badge warning">⏳ Verificación pendiente</span>
+              )
             )}
           </div>
         </div>
@@ -535,31 +581,42 @@ const handleChange = (e) => {
                         <div key={p.id} className="item-card">
                           <div className="item-card-header">
                             <h4 className="item-title">{p.titulo}</h4>
-                            <span className={`status-badge ${p.activa ? 'status-active' : 'status-inactive'}`}>
-                              {p.activa ? 'Activa' : 'Inactiva'}
-                            </span>
+                            {(() => {
+                              const estado = p?.estado_calculado || (p.activa ? 'activa' : 'eliminada');
+                              const cls = estado === 'activa' ? 'status-active' : (estado === 'finalizada' ? 'status-inactive' : (estado === 'con_ofertas' ? 'status-with-offers' : 'status-inactive'));
+                              const texto = estado === 'activa' ? 'Activa' : (estado === 'finalizada' ? 'Finalizada' : (estado === 'con_ofertas' ? 'Con ofertas' : 'Inactiva'));
+                              return <span className={`status-badge ${cls}`}>{texto}</span>;
+                            })()}
                           </div>
                           <div className="meta-row">
                             <div className="meta-item"><span className="label">Categoría:</span> {p.categoria === 'OTRO' ? `Otro (${p.categoria_otro || ''})` : p.categoria}</div>
                             <div className="meta-item"><span className="label">Ciudad:</span> {p.ciudad}</div>
                             <div className="meta-item"><span className="label">Precio máximo:</span> $ {Number(p.precio_maximo).toLocaleString('es-CO')} COP</div>
                             <div className="meta-item"><span className="label">Fecha:</span> {new Date(p.created_at).toLocaleString('es-CO')}</div>
+                            {p.fecha_cierre && (
+                              <div className="meta-item"><span className="label">Cierra:</span> {new Date(p.fecha_cierre).toLocaleString('es-CO')}</div>
+                            )}
                           </div>
                           <p className="item-desc">{p.descripcion}</p>
+                          {((p.fecha_cierre && (new Date(p.fecha_cierre) <= new Date())) || p?.estado_calculado === 'finalizada') && (
+                            <div className="form-error" style={{ marginTop: 8 }}>
+                              Publicación cerrada; no se reciben más ofertas.
+                            </div>
+                          )}
                           <div className="form-actions" style={{ marginTop: 10 }}>
                             {ofertaTarget?.id === p.id ? (
                               <button className="btn btn-secondary" onClick={() => { setOfertaTarget(null); setOfertaForm({ monto_oferta: '', mensaje: '' }); }}>
                                 Cancelar
                               </button>
                             ) : (
-                              <button className="btn btn-primary" onClick={() => setOfertaTarget(p)}>
-                                Hacer Oferta
+                              <button className="btn btn-primary" onClick={() => setOfertaTarget(p)} disabled={!p.activa || p?.estado_calculado === 'finalizada' || (p.fecha_cierre && (new Date(p.fecha_cierre) <= new Date()))} title={!p.activa ? 'Publicación inactiva' : ((p?.estado_calculado === 'finalizada' || (p.fecha_cierre && (new Date(p.fecha_cierre) <= new Date()))) ? 'Publicación cerrada' : 'Hacer Oferta')}>
+                                {(!p.activa) ? 'Inactiva' : ((p?.estado_calculado === 'finalizada' || (p.fecha_cierre && (new Date(p.fecha_cierre) <= new Date()))) ? 'Cerrada' : 'Hacer Oferta')}
                               </button>
                             )}
                           </div>
 
                           {/* Formulario inline para hacer oferta */}
-                          {ofertaTarget?.id === p.id && (
+                          {ofertaTarget?.id === p.id && p.activa && p?.estado_calculado !== 'finalizada' && !(p.fecha_cierre && (new Date(p.fecha_cierre) <= new Date())) && (
                             <form
                               onSubmit={async (e) => {
                                 e.preventDefault();
@@ -826,6 +883,128 @@ const handleChange = (e) => {
                 </button>
               )}
             </form>
+
+            <div className="section-divider" style={{ margin: '24px 0', borderTop: '1px solid #eee' }}></div>
+
+            <div className="profile-header" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3>Documentos de Verificación (PDF)</h3>
+              <div>
+                <button className="btn btn-secondary" onClick={() => setShowUploadModal(true)} disabled={tieneDocActivo}>
+                  Subir PDF de verificación
+                </button>
+                <button className="btn btn-secondary" style={{ marginLeft: 8 }} onClick={async () => {
+                  try {
+                    setDocsLoading(true);
+                    const { success, data } = await listarDocumentosTrabajador(userData.user.id);
+                    if (success) setDocumentos(data || []);
+                  } finally {
+                    setDocsLoading(false);
+                  }
+                }}>Actualizar lista</button>
+                {tieneDocActivo && (
+                  <div className="text-muted" style={{ marginTop: 6 }}>
+                    Ya tienes un documento en revisión o aprobado.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {docsLoading ? (
+              <div className="loading-container"><div className="spinner"></div><p>Cargando documentos...</p></div>
+            ) : (
+              <div className="items-grid">
+                {documentos.length === 0 ? (
+                  <div className="empty-state"><p>Aún no has subido documentos</p></div>
+                ) : (
+                  documentos.map((doc) => (
+                    <div key={doc.id} className="item-card">
+                      <div className="item-header">
+                        <h4 style={{ margin: 0 }}>{doc.tipo === 'identidad' ? 'Identidad' : doc.tipo === 'experiencia' ? 'Experiencia' : 'Otro'}</h4>
+                        <span className={`status-badge ${doc.estado === 'aprobado' ? 'success' : doc.estado === 'rechazado' ? 'danger' : 'warning'}`}>
+                          {doc.estado}
+                        </span>
+                      </div>
+                      <div className="item-body">
+                        <p className="text-muted">Subido: {new Date(doc.created_at).toLocaleString()}</p>
+                        {doc.comentario_admin && (
+                          <p className="text-muted">Comentario: {doc.comentario_admin}</p>
+                        )}
+                      </div>
+                      <div className="item-actions">
+                        <button
+                          className="btn btn-primary"
+                          onClick={async () => {
+                            const { success, url, error } = await obtenerSignedUrlParaDocumento(doc.storage_path);
+                            if (!success || !url) {
+                              setMessage({ text: `No se pudo abrir el documento: ${error?.message || ''}` , type: 'error' });
+                              return;
+                            }
+                            window.open(url, '_blank');
+                          }}
+                        >
+                          Ver PDF
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {showUploadModal && (
+              <div className="modal-overlay">
+                <div className="modal-content" style={{ maxWidth: 560 }}>
+                  <div className="modal-header">
+                    <h3>Subir Documento PDF</h3>
+                    <button className="modal-close" onClick={() => setShowUploadModal(false)}>×</button>
+                  </div>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!docFile) {
+                        setMessage({ text: 'Selecciona un archivo PDF', type: 'error' });
+                        return;
+                      }
+                      try {
+                        setUploadingDoc(true);
+                        const { success, error } = await subirDocumentoPDF(docFile, docTipo);
+                        if (!success) throw error || new Error('No se pudo subir el documento');
+                        setMessage({ text: 'Documento enviado para verificación', type: 'success' });
+                        const { data } = await listarDocumentosTrabajador(userData.user.id);
+                        setDocumentos(data || []);
+                        setShowUploadModal(false);
+                        setDocFile(null);
+                        setDocTipo('identidad');
+                      } catch (err) {
+                        setMessage({ text: err?.message || 'Error al subir documento', type: 'error' });
+                      } finally {
+                        setUploadingDoc(false);
+                      }
+                    }}
+                    className="profile-form"
+                  >
+                    <div className="form-group">
+                      <label className="form-label">Tipo de Documento</label>
+                      <select className="form-control" value={docTipo} onChange={(e) => setDocTipo(e.target.value)}>
+                        <option value="identidad">Identidad</option>
+                        <option value="experiencia">Experiencia</option>
+                        <option value="otro">Otro</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Archivo PDF</label>
+                      <input type="file" accept="application/pdf" className="form-control" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="btn btn-primary" disabled={uploadingDoc}>
+                        {uploadingDoc ? 'Subiendo...' : 'Subir Documento'}
+                      </button>
+                      <button type="button" className="btn btn-secondary" onClick={() => setShowUploadModal(false)}>Cancelar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

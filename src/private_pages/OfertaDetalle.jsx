@@ -368,18 +368,24 @@ const OfertaDetalle = () => {
               <div className="meta-item"><span className="label">Categoría:</span> {pub.categoria === 'OTRO' ? `Otro (${pub.categoria_otro || ''})` : pub.categoria}</div>
               <div className="meta-item"><span className="label">Ciudad:</span> {pub.ciudad}</div>
               <div className="meta-item"><span className="label">Precio máximo:</span> $ {Number(pub.precio_maximo).toLocaleString('es-CO')} COP</div>
+              {pub.fecha_cierre && (
+                <div className="meta-item"><span className="label">Cierra:</span> {new Date(pub.fecha_cierre).toLocaleString('es-CO')}</div>
+              )}
             </div>
             <p className="item-desc">{pub.descripcion}</p>
             <div className="item-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <small>Creada: {new Date(pub.created_at).toLocaleString('es-CO')}</small>
               <button className="btn btn-secondary" onClick={() => navigate(`/publicaciones/${pub.id}`)}>Ver publicación</button>
             </div>
+            {pub.fecha_cierre && new Date(pub.fecha_cierre) <= new Date() && (
+              <div className="form-error" style={{ marginTop: 8 }}>Publicación cerrada; no se reciben más ofertas.</div>
+            )}
           </div>
         )}
 
         {/* Acciones futuras pueden ir aquí */}
         {/* Formulario inline para TRABAJADOR */}
-        {usuario?.profile?.type === 'trabajador' && mostrarForm && pub && (
+        {usuario?.profile?.type === 'trabajador' && mostrarForm && pub && (!pub.fecha_cierre || new Date(pub.fecha_cierre) > new Date()) && (
           <form
             onSubmit={async (e) => {
               e.preventDefault();

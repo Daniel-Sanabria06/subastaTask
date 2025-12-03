@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { listarTodosUsuarios, eliminarUsuarioPorId } from '../supabase/administracion';
-import { Link, useNavigate } from 'react-router-dom';
+import { listarDocumentosPendientes, listarTodosDocumentosVerificacion, obtenerSignedUrlParaDocumento, listarDocumentosVerificacionDesdeStorage, aprobarDocumentoAdmin, rechazarDocumentoAdmin, actualizarEstadoDocumento, actualizarEstadoDocumentoPorPath } from '../supabase/documentos';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase, esCorreoAdmin, CORREOS_ADMIN } from '../supabase/cliente';
 import '../styles/LoginPage.css';
 
@@ -24,8 +25,12 @@ const AdminPanel = () => {
   const [mensajeSnackbar, setMensajeSnackbar] = useState('');
   const [tipoSnackbar, setTipoSnackbar] = useState('success');
   const [copiandoId, setCopiandoId] = useState(null);
+  const [docsCargando, setDocsCargando] = useState(false);
+  const [docsPendientes, setDocsPendientes] = useState([]);
   
   const navigate = useNavigate();
+  const location = useLocation();
+  const verificacionMode = (location?.pathname === '/admin/verificacion' || location?.pathname === '/admin/verifiacion');
 
   const normalizarUsuarios = (datos) => {
     const lista = Array.isArray(datos) ? datos : (datos?.users || []);
@@ -120,6 +125,27 @@ const AdminPanel = () => {
   useEffect(() => {
     if (!autorizado) return;
     obtenerUsuarios();
+    if (verificacionMode) {
+      (async () => {
+        try {
+          setDocsCargando(true);
+          const { success, data } = await listarTodosDocumentosVerificacion();
+          if (success) {
+            const lista = Array.isArray(data) ? data : [];
+            if (lista.length === 0) {
+              const { success: okUsers, data: usersData } = await listarTodosUsuarios();
+              const ids = okUsers ? (Array.isArray(usersData) ? usersData.map(u => u.id) : (usersData?.users || []).map(u => u.id)) : [];
+              const { success: ok, data: storageDocs } = await listarDocumentosVerificacionDesdeStorage(ids);
+              if (ok) setDocsPendientes(storageDocs || []);
+            } else {
+              setDocsPendientes(lista);
+            }
+          }
+          } finally {
+            setDocsCargando(false);
+          }
+      })();
+    }
   }, [autorizado]);
 
   const manejarEliminacion = async (idUsuario) => {
@@ -297,10 +323,14 @@ const AdminPanel = () => {
           <p className="form-subtitle">Gestiona usuarios (auth.users)</p>
         </div>
 
+        {!verificacionMode && (
         <div className="card" style={{ padding: '1rem' }}>
           <div className="flex" style={{ justifyContent: 'space-between', marginBottom: '1rem' }}>
             <button className="btn-primary" onClick={obtenerUsuarios} disabled={cargando}>
               {cargando ? 'Cargando...' : 'Actualizar lista'}
+            </button>
+            <button className="btn-secondary" onClick={() => navigate('/admin/verificacion')}>
+              Verificación
             </button>
             {error && <span className="text-danger">{error}</span>}
           </div>
@@ -372,6 +402,171 @@ const AdminPanel = () => {
             </table>
           </div>
         </div>
+        )}
+
+        {verificacionMode && (
+        <div className="card" style={{ padding: '1rem', marginTop: '0' }}>
+          <div className="text-center mb-8">
+            <h2 className="section-title">Documentos Pendientes de Verificación</h2>
+            <p className="form-subtitle">Revisa PDFs subidos por trabajadores</p>
+          </div>
+          <div className="flex" style={{ justifyContent: 'space-between', gap: 8, marginBottom: '1rem' }}>
+            <button className="btn-secondary" onClick={() => navigate('/admin')}>Volver a usuarios</button>
+            <button
+              className="btn-secondary"
+              onClick={async () => {
+                setDocsCargando(true);
+                const { success, data } = await listarTodosDocumentosVerificacion();
+                if (success) setDocsPendientes(Array.isArray(data) ? data : []);
+                setDocsCargando(false);
+              }}
+            >Reiniciar búsqueda</button>
+            <button
+              className="btn-secondary"
+              onClick={async () => {
+                setDocsCargando(true);
+                const { success: okUsers, data: usersData } = await listarTodosUsuarios();
+                const ids = okUsers ? (Array.isArray(usersData) ? usersData.map(u => u.id) : (usersData?.users || []).map(u => u.id)) : [];
+                const { success, data } = await listarDocumentosVerificacionDesdeStorage(ids);
+                if (success) setDocsPendientes(Array.isArray(data) ? data : []);
+                setDocsCargando(false);
+              }}
+            >Buscar en Storage</button>
+          </div>
+          {docsCargando ? (
+            <div className="loading-container"><div className="spinner"></div><p>Cargando documentos...</p></div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Correo</th>
+                    <th style={{ textAlign: 'left' }}>Fecha</th>
+                    <th style={{ textAlign: 'left' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docsPendientes.length === 0 ? (
+                    <tr><td colSpan={3} style={{ padding: '1rem', textAlign: 'center' }}>No hay documentos pendientes</td></tr>
+                  ) : (
+                    docsPendientes.map((doc) => (
+                      <tr key={doc.id} style={{ borderTop: '1px solid #eee' }}>
+                        <td>{doc.trabajador?.correo || '-'}</td>
+                        <td>{new Date(doc.created_at).toLocaleString()}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <span className={`status-badge ${doc.estado === 'aprobado' ? 'status-active' : doc.estado === 'rechazado' ? 'status-inactive' : ''}`}>{doc.estado}</span>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={async () => {
+                                const { success, url, error } = await obtenerSignedUrlParaDocumento(doc.storage_path);
+                                if (!success || !url) {
+                                  setMensajeSnackbar(`No se pudo abrir PDF: ${error?.message || ''}`);
+                                  setTipoSnackbar('error');
+                                  setSnackbarAbierto(true);
+                                  return;
+                                }
+                                window.open(url, '_blank');
+                              }}
+                            >Ver PDF</button>
+                            <button
+                              className="btn btn-primary"
+                              disabled={doc.estado === 'aprobado'}
+                              onClick={async () => {
+                                try {
+                                  let ok = false;
+                                  if (typeof doc.id === 'number') {
+                                    const { success, error } = await actualizarEstadoDocumento(doc.id, 'aprobado');
+                                    ok = !!success;
+                                    if (!success) throw error || new Error('No se pudo aprobar');
+                                  } else {
+                                    const { success, data, error } = await actualizarEstadoDocumentoPorPath(doc.trabajador_id, doc.storage_path, 'aprobado');
+                                    if (success && Array.isArray(data) && data.length > 0) {
+                                      ok = true;
+                                    } else {
+                                      const { success: s2, error: e2 } = await aprobarDocumentoAdmin(doc);
+                                      ok = !!s2;
+                                      if (!s2) throw e2 || new Error('No se pudo aprobar desde Storage');
+                                    }
+                                  }
+
+                                const { success: okList, data } = await listarTodosDocumentosVerificacion();
+                                if (okList) {
+                                  const lista = Array.isArray(data) ? data : [];
+                                  if (lista.length === 0) {
+                                    const { success: okUsers, data: usersData } = await listarTodosUsuarios();
+                                    const ids = okUsers ? (Array.isArray(usersData) ? usersData.map(u => u.id) : (usersData?.users || []).map(u => u.id)) : [];
+                                    const { success: okStor, data: storageDocs } = await listarDocumentosVerificacionDesdeStorage(ids);
+                                    setDocsPendientes(okStor ? (storageDocs || []) : []);
+                                  } else {
+                                    setDocsPendientes(lista);
+                                  }
+                                }
+                                  setMensajeSnackbar('Documento aprobado');
+                                  setTipoSnackbar('success');
+                                  setSnackbarAbierto(true);
+                                } catch (e) {
+                                  setMensajeSnackbar(e?.message || 'Error al aprobar');
+                                  setTipoSnackbar('error');
+                                  setSnackbarAbierto(true);
+                                }
+                              }}
+                            >Aprobar</button>
+                            <button
+                              className="btn btn-secondary"
+                              disabled={doc.estado === 'rechazado'}
+                              onClick={async () => {
+                                try {
+                                  const comentario = prompt('Motivo de rechazo (opcional):') || '';
+                                  let ok = false;
+                                  if (typeof doc.id === 'number') {
+                                    const { success, error } = await actualizarEstadoDocumento(doc.id, 'rechazado', comentario);
+                                    ok = !!success;
+                                    if (!success) throw error || new Error('No se pudo rechazar');
+                                  } else {
+                                    const { success, data, error } = await actualizarEstadoDocumentoPorPath(doc.trabajador_id, doc.storage_path, 'rechazado', comentario);
+                                    if (success && Array.isArray(data) && data.length > 0) {
+                                      ok = true;
+                                    } else {
+                                      const { success: s2, error: e2 } = await rechazarDocumentoAdmin(doc, comentario);
+                                      ok = !!s2;
+                                      if (!s2) throw e2 || new Error('No se pudo rechazar desde Storage');
+                                    }
+                                  }
+
+                                const { success: okList, data } = await listarTodosDocumentosVerificacion();
+                                if (okList) {
+                                  const lista = Array.isArray(data) ? data : [];
+                                  if (lista.length === 0) {
+                                    const { success: okUsers, data: usersData } = await listarTodosUsuarios();
+                                    const ids = okUsers ? (Array.isArray(usersData) ? usersData.map(u => u.id) : (usersData?.users || []).map(u => u.id)) : [];
+                                    const { success: okStor, data: storageDocs } = await listarDocumentosVerificacionDesdeStorage(ids);
+                                    setDocsPendientes(okStor ? (storageDocs || []) : []);
+                                  } else {
+                                    setDocsPendientes(lista);
+                                  }
+                                }
+                                  setMensajeSnackbar('Documento rechazado');
+                                  setTipoSnackbar('success');
+                                  setSnackbarAbierto(true);
+                                } catch (e) {
+                                  setMensajeSnackbar(e?.message || 'Error al rechazar');
+                                  setTipoSnackbar('error');
+                                  setSnackbarAbierto(true);
+                                }
+                              }}
+                            >Rechazar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        )}
 
         {/* Snackbar */}
         <div

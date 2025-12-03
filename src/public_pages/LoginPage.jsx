@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { loginUser } from '../supabase/supabaseClient';
+import { loginUser, sendMagicLink } from '../supabase/supabaseClient';
 import '../styles/LoginPage.css';
 import logo from '../assets/logo.png';
 
@@ -11,6 +11,8 @@ const LoginPage = () => {
     email: '',
     password: ''
   });
+  const [magicStatus, setMagicStatus] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -25,6 +27,25 @@ const LoginPage = () => {
   };
 
   const navigate = useNavigate();
+
+  const handleMagicLink = async () => {
+    try {
+      setMagicStatus('');
+      const email = formData.email;
+      if (!email) {
+        setMagicStatus('Ingresa tu correo para enviar el enlace');
+        return;
+      }
+      const { success, error } = await sendMagicLink(email);
+      if (!success) {
+        setMagicStatus(error?.message || 'No se pudo enviar el enlace');
+        return;
+      }
+      setMagicStatus('Enlace de acceso enviado. Revisa tu correo.');
+    } catch (e) {
+      setMagicStatus(e?.message || 'Error al enviar enlace');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,7 +121,7 @@ const LoginPage = () => {
                 Contraseña
               </label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 id="password"
                 name="password"
                 value={formData.password}
@@ -109,6 +130,9 @@ const LoginPage = () => {
                 placeholder="********"
                 required
               />
+              <button type="button" className="btn-secondary" onClick={() => setShowPassword((v) => !v)} style={{ marginTop: 6 }}>
+                {showPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
             </div>
 
             <div className="form-options">
@@ -117,6 +141,14 @@ const LoginPage = () => {
                 <a href="/reset-password" className="link-primary">
                   ¿Olvidaste tu contraseña?
                 </a>
+              </div>
+              <div className="forgot-password">
+                <button type="button" className="btn-secondary" onClick={handleMagicLink} style={{ marginTop: 8 }}>
+                  Enviar enlace de acceso
+                </button>
+                {magicStatus && (
+                  <div className="text-muted" style={{ marginTop: 6 }}>{magicStatus}</div>
+                )}
               </div>
             </div>
 
