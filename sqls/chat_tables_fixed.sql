@@ -212,6 +212,11 @@ BEGIN
     UPDATE public.ofertas
     SET estado = 'finalizada', updated_at = now()
     WHERE id = v_oferta_id;
+
+    -- Cerrar la publicación y registrar fecha_cierre
+    UPDATE public.publicaciones p
+    SET activa = false, fecha_cierre = now(), updated_at = now()
+    WHERE p.id = (SELECT publicacion_id FROM public.ofertas WHERE id = v_oferta_id);
     
     -- Desactivar el chat
     UPDATE public.chats

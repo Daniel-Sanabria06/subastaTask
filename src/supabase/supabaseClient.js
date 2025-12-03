@@ -271,6 +271,21 @@ export const logoutUser = async () => {
   }
 };
 
+export const sendMagicLink = async (email) => {
+  try {
+    if (!email) return { success: false, error: new Error('Email requerido') };
+    const redirect = `${window.location.origin}/admin`;
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirect }
+    });
+    if (error) return { success: false, error };
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
 // Añadir funciones de administración que llaman a Edge Functions
 export const listAllUsers = async () => {
   try {
