@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { listarTodosUsuarios, eliminarUsuarioPorId } from '../supabase/administracion';
+import { listarDocumentosPendientes, actualizarEstadoDocumento, obtenerSignedUrlParaDocumento } from '../supabase/documentos';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase, esCorreoAdmin, CORREOS_ADMIN } from '../supabase/cliente';
 import '../styles/LoginPage.css';
@@ -24,6 +25,8 @@ const AdminPanel = () => {
   const [mensajeSnackbar, setMensajeSnackbar] = useState('');
   const [tipoSnackbar, setTipoSnackbar] = useState('success');
   const [copiandoId, setCopiandoId] = useState(null);
+  const [docsCargando, setDocsCargando] = useState(false);
+  const [docsPendientes, setDocsPendientes] = useState([]);
   
   const navigate = useNavigate();
 
@@ -120,6 +123,15 @@ const AdminPanel = () => {
   useEffect(() => {
     if (!autorizado) return;
     obtenerUsuarios();
+    (async () => {
+      try {
+        setDocsCargando(true);
+        const { success, data } = await listarDocumentosPendientes();
+        if (success) setDocsPendientes(data || []);
+      } finally {
+        setDocsCargando(false);
+      }
+    })();
   }, [autorizado]);
 
   const manejarEliminacion = async (idUsuario) => {
@@ -371,6 +383,96 @@ const AdminPanel = () => {
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="card" style={{ padding: '1rem', marginTop: '2rem' }}>
+          <div className="text-center mb-8">
+            <h2 className="section-title">Documentos Pendientes de Verificación</h2>
+            <p className="form-subtitle">Revisa PDFs subidos por trabajadores</p>
+          </div>
+          {docsCargando ? (
+            <div className="loading-container"><div className="spinner"></div><p>Cargando documentos...</p></div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Trabajador</th>
+                    <th style={{ textAlign: 'left' }}>Email</th>
+                    <th style={{ textAlign: 'left' }}>Tipo</th>
+                    <th style={{ textAlign: 'left' }}>Fecha</th>
+                    <th style={{ textAlign: 'left' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docsPendientes.length === 0 ? (
+                    <tr><td colSpan={5} style={{ padding: '1rem', textAlign: 'center' }}>No hay documentos pendientes</td></tr>
+                  ) : (
+                    docsPendientes.map((doc) => (
+                      <tr key={doc.id} style={{ borderTop: '1px solid #eee' }}>
+                        <td>{doc.trabajador?.nombre_completo || (doc.trabajador_id || '').slice(0,6)}</td>
+                        <td>{doc.trabajador?.correo || '-'}</td>
+                        <td>{doc.tipo}</td>
+                        <td>{new Date(doc.created_at).toLocaleString()}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={async () => {
+                                const { success, url, error } = await obtenerSignedUrlParaDocumento(doc.storage_path);
+                                if (!success || !url) {
+                                  setMensajeSnackbar(`No se pudo abrir PDF: ${error?.message || ''}`);
+                                  setTipoSnackbar('error');
+                                  setSnackbarAbierto(true);
+                                  return;
+                                }
+                                window.open(url, '_blank');
+                              }}
+                            >Ver PDF</button>
+                            <button
+                              className="btn btn-primary"
+                              onClick={async () => {
+                                const { success, error } = await actualizarEstadoDocumento(doc.id, 'aprobado');
+                                if (!success) {
+                                  setMensajeSnackbar(error?.message || 'Error al aprobar');
+                                  setTipoSnackbar('error');
+                                  setSnackbarAbierto(true);
+                                  return;
+                                }
+                                const { data } = await listarDocumentosPendientes();
+                                setDocsPendientes(data || []);
+                                setMensajeSnackbar('Documento aprobado');
+                                setTipoSnackbar('success');
+                                setSnackbarAbierto(true);
+                              }}
+                            >Aprobar</button>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={async () => {
+                                const comentario = prompt('Motivo de rechazo (opcional):') || '';
+                                const { success, error } = await actualizarEstadoDocumento(doc.id, 'rechazado', comentario);
+                                if (!success) {
+                                  setMensajeSnackbar(error?.message || 'Error al rechazar');
+                                  setTipoSnackbar('error');
+                                  setSnackbarAbierto(true);
+                                  return;
+                                }
+                                const { data } = await listarDocumentosPendientes();
+                                setDocsPendientes(data || []);
+                                setMensajeSnackbar('Documento rechazado');
+                                setTipoSnackbar('success');
+                                setSnackbarAbierto(true);
+                              }}
+                            >Rechazar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Snackbar */}
