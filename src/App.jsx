@@ -21,6 +21,7 @@ import PublicacionDetalle from './private_pages/PublicacionDetalle';
 import OfertaDetalle from './private_pages/OfertaDetalle';
 import ResetPasswordPage from './public_pages/OlvidePassword';
 import AdminPanel from './admin/AdminPanel';
+import AdminDocumentos from './admin/AdminDocumentos';
 import ComoFunciona from './public_pages/ComoFunciona';
 import Servicios from './public_pages/Servicios';
 import Contacto from './public_pages/Contacto';
@@ -172,6 +173,14 @@ function App() {
               element={
                 <RoleRoute allow={["administrador"]}>
                   <AdminPanel />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="/admin/documentos" 
+              element={
+                <RoleRoute allow={["administrador"]}>
+                  <AdminDocumentos />
                 </RoleRoute>
               } 
             />

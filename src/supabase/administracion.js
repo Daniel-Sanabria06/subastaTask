@@ -207,3 +207,13 @@ export const eliminarUsuarioPorId = async (userId) => {
     }
   }
 };
+
+export const verificarConexionBD = async () => {
+  try {
+    const { data, error } = await supabase.from('clientes').select('id').limit(1);
+    if (error) return { success: false, error };
+    return { success: true, data };
+  } catch (e) {
+    return { success: false, error: e };
+  }
+};

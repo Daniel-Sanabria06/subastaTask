@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listarTodosUsuarios, eliminarUsuarioPorId } from '../supabase/administracion';
+import { listarTodosUsuarios, eliminarUsuarioPorId, verificarConexionBD } from '../supabase/administracion';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase, esCorreoAdmin, CORREOS_ADMIN } from '../supabase/cliente';
 import '../styles/LoginPage.css';
@@ -303,6 +303,16 @@ const AdminPanel = () => {
               {cargando ? 'Cargando...' : 'Actualizar lista'}
             </button>
             {error && <span className="text-danger">{error}</span>}
+          </div>
+
+          <div className="flex" style={{ justifyContent: 'flex-start', gap: 12, marginBottom: '1rem' }}>
+            <button className="btn-secondary" onClick={async () => {
+              const { success } = await verificarConexionBD();
+              setMensajeSnackbar(success ? 'Conexión a BD OK' : 'Fallo al conectar a BD');
+              setTipoSnackbar(success ? 'success' : 'error');
+              setSnackbarAbierto(true);
+            }}>Verificar conexión BD</button>
+            <button className="btn-secondary" onClick={() => navigate('/admin/documentos')}>Verificación de documentos</button>
           </div>
 
           <div className="table-responsive">

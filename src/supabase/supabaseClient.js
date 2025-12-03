@@ -129,6 +129,11 @@ export const loginUser = async (email, password) => {
       return { success: false, error };
     }
 
+    if (!data?.user?.email_confirmed_at) {
+      await supabase.auth.signOut();
+      return { success: false, error: new Error('Tu cuenta no está verificada. Revisa tu correo y confirma antes de iniciar sesión.') };
+    }
+
     // Obtener el perfil del usuario después del login
     const userProfile = await getCurrentUser();
     
