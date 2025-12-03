@@ -13,6 +13,9 @@
   --accent-hover: #256bbd;
   --accent-gold: #d4af37; /* Dorado suave para detalles navideños */
   --snow: #f8fbff;
+  /* Texto específico para burbujas verdes de mensajes enviados */
+  --bubble-sent-text: #0a2540;
+  --bubble-sent-time: #2c3e50;
 }
 
 [data-theme="dark"] {
@@ -26,6 +29,9 @@
   --accent-hover: #4a9aff;
   --accent-gold: #e0c060;
   --snow: #0e1828;
+  /* Mantener texto oscuro sobre verde claro incluso en tema oscuro */
+  --bubble-sent-text: #0a2540;
+  --bubble-sent-time: #044d95;
 }
 
 /* === Animaciones mejoradas === */
@@ -189,6 +195,45 @@
   color: var(--accent-primary);
   border-bottom: 2px solid var(--accent-primary);
   background-color: rgba(26, 86, 168, 0.05);
+}
+
+/* === Control segmentado (botonera) === */
+.segmented-control {
+  display: inline-flex;
+  background: var(--snow);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.segmented-control .seg-btn {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  font-weight: 600;
+}
+.segmented-control .seg-btn:hover {
+  background: rgba(26, 86, 168, 0.06);
+  color: var(--accent-primary);
+}
+.segmented-control .seg-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+/* Variantes por estado (para filtros) */
+.segmented-control .seg-btn.estado-todas.active { background: #6c757d; }
+.segmented-control .seg-btn.estado-activa.active { background: #28a745; }
+.segmented-control .seg-btn.estado-con_ofertas.active { background: #17a2b8; }
+.segmented-control .seg-btn.estado-finalizada.active { background: #1a56a8; }
+.segmented-control .seg-btn.estado-eliminada.active { background: #dc3545; }
+
+/* Etiqueta para tab fusionada */
+.tabs-label {
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 /* === Contenido del dashboard === */

@@ -1,8 +1,8 @@
 import React from 'react';
-import { FaUser, FaCheck, FaTimes, FaStar } from 'react-icons/fa';
+import { FaUser, FaCheck, FaTimes, FaStar, FaCheckCircle } from 'react-icons/fa';
 import { supabase } from '../../supabase/supabaseClient';
 
-const ChatHeader = ({ chat, currentUser, onOfferAccepted, onOfferRejected }) => {
+const ChatHeader = ({ chat, currentUser, onOfferAccepted, onOfferRejected, onOpenRating }) => {
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleAcceptOffer = async () => {
@@ -140,6 +140,79 @@ const ChatHeader = ({ chat, currentUser, onOfferAccepted, onOfferRejected }) => 
   const showActionButtons = isClient && chat?.is_active && chat?.offer_status === 'pendiente';
   const isChatFinalized = !chat?.is_active;
   const isOfferAccepted = chat?.offer_status === 'aceptada';
+  const canRate = isClient && chat?.offer_status === 'finalizada';
+  const canFinalize = isClient && chat?.is_active && chat?.offer_status === 'aceptada';
+
+  const handleFinalizeOffer = async () => {
+    if (!chat || !currentUser) return;
+
+    try {
+      setIsLoading(true);
+
+      // Solo el cliente puede finalizar la oferta
+      if (currentUser.id !== chat.cliente_id) {
+        alert('Solo el cliente puede finalizar la oferta.');
+        return;
+      }
+
+      // Intentar finalizar vía RPC
+      const { error } = await supabase.rpc('finalize_offer_from_chat', {
+        p_chat_id: chat.id,
+        p_user_id: currentUser.id
+      });
+
+      // Fallback si RPC no existe: actualizar directamente oferta y chat y crear mensaje de sistema
+      if (error) {
+        const msg = (error?.message || '').toLowerCase();
+        const isMissingFn = msg.includes('could not find the function') || msg.includes('rpc');
+        if (isMissingFn) {
+          // 1) Actualizar estado de la oferta
+          const { error: updOfferErr } = await supabase
+            .from('ofertas')
+            .update({ estado: 'finalizada', updated_at: new Date().toISOString() })
+            .eq('id', chat.oferta_id);
+          if (updOfferErr) throw updOfferErr;
+
+          // 2) Desactivar el chat
+          const { error: updChatErr } = await supabase
+            .from('chats')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', chat.id);
+          if (updChatErr) throw updChatErr;
+
+          // 3) Insertar mensaje del sistema
+          const { error: sysMsgErr } = await supabase
+            .from('mensajes')
+            .insert([{
+              chat_id: chat.id,
+              sender_id: currentUser.id,
+              content: 'La oferta ha sido finalizada. El chat quedará disponible solo para consulta.',
+              is_read: true,
+              is_system_message: true,
+              created_at: new Date().toISOString()
+            }]);
+          if (sysMsgErr) throw sysMsgErr;
+        } else {
+          throw error;
+        }
+      }
+
+      // Abrir modal de calificación inmediatamente
+      if (typeof onOpenRating === 'function') {
+        onOpenRating();
+      }
+    } catch (err) {
+      console.error('Error al finalizar oferta:', err);
+      const code = err?.code || err?.error?.code;
+      if (code === '23514') {
+        alert('No se puede finalizar: el estado "finalizada" no está permitido por el constraint actual (ofertas_estado_check). Ejecuta en la base de datos el script sqls/alter_ofertas_estado_add_finalizada.sql para habilitarlo.');
+      } else {
+        alert('Error al finalizar la oferta: ' + (err?.message || 'Desconocido'));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="chat-header">
@@ -185,13 +258,26 @@ const ChatHeader = ({ chat, currentUser, onOfferAccepted, onOfferRejected }) => 
           </>
         )}
         
-        <button
-          className="btn-rate"
-          onClick={() => { alert('Calificar trabajador (próximamente)'); }}
-          title="Calificar trabajador (próximamente)"
-        >
-          <FaStar /> Calificar Trabajador
-        </button>
+        {canRate && (
+          <button
+            className="btn-rate"
+            onClick={() => onOpenRating?.()}
+            title="Calificar trabajador"
+          >
+            <FaStar /> Calificar Trabajador
+          </button>
+        )}
+
+        {canFinalize && (
+          <button
+            className="btn-finalize"
+            onClick={handleFinalizeOffer}
+            disabled={isLoading}
+            title="Finalizar oferta"
+          >
+            <FaCheckCircle /> Finalizar Oferta
+          </button>
+        )}
       </div>
     </div>
   );

@@ -9,8 +9,17 @@ import ChatHeader from '../components/chat/ChatHeader';
 import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
 import { uploadFile, markMessagesAsRead, finalizeOfferFromChat } from '../components/chat/ChatUtils';
+import RatingModal from '../components/reviews/RatingModal';
+import { existeResenaClienteParaOferta } from '../supabase/reviews';
 
 const ChatPage = () => {
+  // Utilidad: validar UUID v1-v5
+  const isValidUUID = (value) => {
+    if (typeof value !== 'string') return false;
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+    return uuidRegex.test(value);
+  };
+
   // Asegurar que se usa el nombre correcto del parámetro de ruta
   const params = useParams();
   const chatId = params.idchat || params.chatId;
@@ -24,6 +33,8 @@ const ChatPage = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
   
   // Cargar datos del usuario actual
   useEffect(() => {
@@ -44,6 +55,13 @@ const ChatPage = () => {
     const fetchChatData = async () => {
       if (!chatId) {
         console.warn('ID de chat no presente en la ruta');
+        setErrorMsg('ID de chat inválido.');
+        return;
+      }
+
+      // Validar formato UUID antes de consultar
+      if (!isValidUUID(chatId)) {
+        console.error('ID de chat con formato inválido (no UUID):', chatId);
         setErrorMsg('ID de chat inválido.');
         return;
       }
@@ -128,6 +146,18 @@ const ChatPage = () => {
         // 4) Cargar mensajes
         await fetchMessages();
 
+        // 5) Verificar si el cliente ya calificó esta oferta
+        try {
+          if (formattedChat?.oferta_id && currentUser?.id === formattedChat?.cliente_id) {
+            const check = await existeResenaClienteParaOferta(formattedChat.oferta_id);
+            if (check.success) {
+              setHasReviewed(check.exists);
+            }
+          }
+        } catch (e) {
+          console.warn('No se pudo verificar reseña existente:', e);
+        }
+
       } catch (error) {
         console.error('Error al cargar datos del chat:', error);
         setErrorMsg('Error al cargar el chat. Por favor, intenta nuevamente.');
@@ -140,6 +170,10 @@ const ChatPage = () => {
   // Cargar mensajes
   const fetchMessages = async () => {
     try {
+      // Evitar consulta si el ID no es UUID válido
+      if (!chatId || !isValidUUID(chatId)) {
+        return;
+      }
       const { data, error } = await supabase
         .from('mensajes')
         .select('*')
@@ -162,7 +196,7 @@ const ChatPage = () => {
   
   // Suscripción a nuevos mensajes y cambios en el chat
   useEffect(() => {
-    if (!chatId || !currentUser) return;
+    if (!chatId || !currentUser || !isValidUUID(chatId)) return;
     
     // Canal para mensajes
     const messageSubscription = supabase
@@ -284,6 +318,17 @@ const ChatPage = () => {
     if (!currentUser || !chat) return false;
     return currentUser.id === chat.cliente_id || currentUser.id === chat.trabajador_id;
   };
+
+  // Abrir modal automáticamente al finalizar la oferta (solo cliente y si no calificó)
+  useEffect(() => {
+    if (!chat || !currentUser) return;
+    const esCliente = currentUser.id === chat.cliente_id;
+    const ofertaFinalizada = chat.offer_status === 'finalizada';
+    const chatCerrado = !chat.is_active;
+    if (esCliente && ofertaFinalizada && chatCerrado && !hasReviewed) {
+      setShowRatingModal(true);
+    }
+  }, [chat, currentUser, hasReviewed]);
   
   // Si no hay datos del chat, mostrar cargando
   if (errorMsg) {
@@ -310,6 +355,7 @@ const ChatPage = () => {
         currentUser={currentUser} 
         onOfferAccepted={handleOfferAccepted}
         onOfferRejected={handleOfferRejected}
+        onOpenRating={() => setShowRatingModal(true)}
       />
       
       <MessageList 
@@ -328,6 +374,14 @@ const ChatPage = () => {
         <div className="chat-finalized-banner">
           <p>Chat finalizado - No se pueden enviar más mensajes</p>
         </div>
+      )}
+
+      {showRatingModal && (
+        <RatingModal 
+          chat={chat}
+          onClose={() => setShowRatingModal(false)}
+          onSubmitted={() => setHasReviewed(true)}
+        />
       )}
     </div>
   );

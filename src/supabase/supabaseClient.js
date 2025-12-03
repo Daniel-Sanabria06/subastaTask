@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '../utils/logger.js'
 
 // Inicializar el cliente de Supabase con la URL y clave desde variables de entorno
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -54,6 +55,12 @@ export const registerUser = async (formData) => {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
+      options: {
+        data: {
+          termsAccepted: !!formData.aceptaTerminos,
+          termsAcceptedAt: !!formData.aceptaTerminos ? new Date().toISOString() : null
+        }
+      }
     });
 
     if (authError) {
@@ -98,7 +105,7 @@ export const registerUser = async (formData) => {
       try {
         await supabase.functions.invoke('delete_users', { body: { user_id: authData.user.id } });
       } catch (rollbackErr) {
-        console.warn('Rollback de usuario en Auth falló:', rollbackErr);
+        logger.warn('Rollback de usuario en Auth falló:', rollbackErr);
       }
       return { success: false, error: profileError };
     }
@@ -150,7 +157,7 @@ export const getCurrentUser = async () => {
     }
 
     // Buscar en la tabla clientes
-    const { data: clienteData, error: clienteError } = await supabase
+    const { data: clienteData } = await supabase
       .from('clientes')
       .select('*')
       .eq('id', user.id)
@@ -170,7 +177,7 @@ export const getCurrentUser = async () => {
     }
 
     // Si no es cliente, buscar en trabajadores
-    const { data: trabajadorData, error: trabajadorError } = await supabase
+    const { data: trabajadorData } = await supabase
       .from('trabajadores')
       .select('*')
       .eq('id', user.id)
@@ -519,5 +526,34 @@ export const getTrabajadorPublico = async (trabajadorId) => {
   } catch (error) {
     console.error('Error inesperado en getTrabajadorPublico:', error);
     throw new Error('Error al obtener datos públicos del trabajador');
+  }
+};
+
+export const listarTrabajadoresPublicos = async (filtros = {}) => {
+  try {
+    const { q, ciudad, profesion, habilidad, estado } = filtros || {};
+    let query = supabase
+      .from('trabajadores')
+      .select('id, nombre_completo, ciudad, edad, profesion, habilidades, estado_cuenta, created_at')
+      .order('created_at', { ascending: false });
+
+    query = query.eq('estado_cuenta', estado || 'activa');
+    if (ciudad) query = query.ilike('ciudad', `%${ciudad}%`);
+    if (profesion) query = query.ilike('profesion', `%${profesion}%`);
+    if (habilidad) query = query.contains('habilidades', [habilidad]);
+    if (q) {
+      try {
+        query = query.or(`nombre_completo.ilike.%${q}%,profesion.ilike.%${q}%,ciudad.ilike.%${q}%`);
+      } catch (err) {
+        console.warn('Fallo OR en listarTrabajadoresPublicos', err);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return { success: true, data: data || [], error: null };
+  } catch (error) {
+    console.error('Error al listar trabajadores públicos:', error);
+    return { success: false, data: [], error };
   }
 };

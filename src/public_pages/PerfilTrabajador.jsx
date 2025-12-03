@@ -18,7 +18,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getTrabajadorPublico } from '../supabase/supabaseClient';
+import { supabase, getTrabajadorPublico } from '../supabase/supabaseClient';
+import { obtenerEstadisticasTrabajador, listarResenasRecientesTrabajador } from '../supabase/reviews';
 import '../styles/PerfilPublico.css';
 
 const PerfilTrabajador = () => {
@@ -26,6 +27,8 @@ const PerfilTrabajador = () => {
   const [trabajador, setTrabajador] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [resenasStats, setResenasStats] = useState({ promedio: 0, total: 0 });
+  const [resenasRecientes, setResenasRecientes] = useState([]);
   
   // Obtener el ID del trabajador desde los parámetros de la URL
   const { id } = useParams();
@@ -66,6 +69,37 @@ const PerfilTrabajador = () => {
     }
   }, [id]);
 
+  // Cargar estadísticas y reseñas recientes cuando tengamos el trabajador
+  useEffect(() => {
+    const cargarResenas = async () => {
+      if (!trabajador?.id) return;
+      try {
+        const [statsResp, recientesResp] = await Promise.all([
+          obtenerEstadisticasTrabajador(trabajador.id),
+          listarResenasRecientesTrabajador(trabajador.id, 5)
+        ]);
+        if (statsResp.success && statsResp.data) setResenasStats(statsResp.data);
+        if (recientesResp.success && Array.isArray(recientesResp.data)) setResenasRecientes(recientesResp.data);
+      } catch (e) {
+        console.warn('No se pudieron cargar reseñas:', e);
+      }
+    };
+    cargarResenas();
+    // Suscripción en tiempo real para actualizar métricas al insert
+    const channel = supabase
+      .channel(`reseñas-trabajador-${trabajador?.id || 'unknown'}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'resenas_ofertas', filter: `trabajador_id=eq.${trabajador?.id}` },
+        () => cargarResenas()
+      )
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [trabajador]);
+
   /**
    * Formatea una fecha en formato legible en español
    * @param {string} fecha - Fecha en formato ISO
@@ -77,6 +111,28 @@ const PerfilTrabajador = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  /**
+   * Convierte fecha a relativa en español (ej: "hace 3 días")
+   * @param {string|Date} fecha
+   * @returns {string}
+   */
+  const fechaRelativa = (fecha) => {
+    const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
+    const diffMs = Date.now() - d.getTime();
+    const sec = Math.floor(diffMs / 1000);
+    if (sec < 60) return `hace ${sec} segundo${sec !== 1 ? 's' : ''}`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `hace ${min} minuto${min !== 1 ? 's' : ''}`;
+    const horas = Math.floor(min / 60);
+    if (horas < 24) return `hace ${horas} hora${horas !== 1 ? 's' : ''}`;
+    const dias = Math.floor(horas / 24);
+    if (dias < 30) return `hace ${dias} día${dias !== 1 ? 's' : ''}`;
+    const meses = Math.floor(dias / 30);
+    if (meses < 12) return `hace ${meses} mes${meses !== 1 ? 'es' : ''}`;
+    const anios = Math.floor(meses / 12);
+    return `hace ${anios} año${anios !== 1 ? 's' : ''}`;
   };
 
   /**
@@ -204,6 +260,39 @@ const PerfilTrabajador = () => {
           </div>
         )}
 
+        {/* Reseñas públicas del trabajador */}
+        <div className="perfil-reseñas">
+          <h3>⭐ Reseñas</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+              {resenasStats.promedio?.toFixed?.(1) || '0.0'} / 5
+            </div>
+            <div style={{ color: '#64748b' }}>
+              Basado en {resenasStats.total || 0} reseña{(resenasStats.total || 0) !== 1 ? 's' : ''}
+            </div>
+          </div>
+
+          {resenasRecientes?.length ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {resenasRecientes.slice(0, 5).map((r, idx) => (
+                <div key={idx} style={{ border: '1px solid #f1f5f9', borderRadius: 12, padding: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#f5a623', fontWeight: 700 }}>
+                      {'★'.repeat(Math.round(r.estrellas || 0))}
+                    </span>
+                    <span style={{ color: '#64748b' }}>{fechaRelativa(r.created_at)}</span>
+                  </div>
+                  {r.comentario && (
+                    <p style={{ marginTop: 6 }}>{r.comentario}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: '#64748b' }}>Aún no hay reseñas públicas.</p>
+          )}
+        </div>
+
         {/* Información de contacto para clientes */}
         <div className="perfil-contacto">
           <h3>¿Necesitas contratar este trabajador?</h3>
@@ -219,11 +308,11 @@ const PerfilTrabajador = () => {
         </div>
 
         {/* Pie del perfil */}
-        <div className="perfil-footer">
-          <Link to="/" className="link-inicio">
-            ← Volver al inicio
-          </Link>
-        </div>
+      <div className="perfil-footer">
+        <Link to="/" className="link-inicio">
+          ← Volver al inicio
+        </Link>
+      </div>
       </div>
     </div>
   );

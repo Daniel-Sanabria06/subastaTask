@@ -99,7 +99,13 @@ CREATE POLICY "Trabajadores actualizan su perfil" ON trabajadores
 
 -- Los clientes pueden ver todos los trabajadores activos
 CREATE POLICY "Clientes ven trabajadores activos" ON trabajadores
-    FOR SELECT USING (estado_cuenta = 'activa');
+    FOR SELECT USING (
+        estado_cuenta = 'activa'
+        AND auth.uid() IS NOT NULL
+        AND EXISTS (
+            SELECT 1 FROM clientes c WHERE c.id = auth.uid()
+        )
+    );
 
 -- Los trabajadores pueden ver todos los clientes (para futuras funcionalidades)
 CREATE POLICY "Trabajadores ven clientes" ON clientes
@@ -118,5 +124,4 @@ CREATE POLICY "Permitir inserción de perfiles de usuario"
 ON usuarios 
 FOR INSERT 
 WITH CHECK (true);
-
 

@@ -9,7 +9,6 @@
 //   comparando contra oferta.cliente_id y oferta.trabajador_id.
 // - El acceso al chat primero intenta recuperar uno existente y, si no, crea un nuevo chat.
 import { useEffect, useState } from 'react';
-import { useEffect, useState} from 'react'; // 👈 Aquí se añade useMemo
 import { useParams, useNavigate } from 'react-router-dom';
 import { obtenerUsuarioActual } from '../supabase/autenticacion.js';
 import { obtenerOfertaPorId, contarOfertasDelTrabajadorPorPublicacion, crearOferta } from '../supabase/ofertas.js';
