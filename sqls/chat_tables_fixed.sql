@@ -234,6 +234,35 @@ BEGIN
         true
     );
     
+    -- Notificaciones a ambos participantes
+    -- Actor que finaliza
+    DECLARE v_actor_name TEXT;
+    BEGIN
+        v_actor_name := public.get_display_name(p_user_id);
+
+        -- Notificación al cliente: lleva a calificación
+        INSERT INTO public.notificaciones (
+            usuario_id, tipo, chat_id, oferta_id, emisor_id,
+            titulo, cuerpo, destino, destino_path, is_read
+        ) VALUES (
+            v_cliente_id, 'oferta_finalizada', p_chat_id, v_oferta_id, p_user_id,
+            'La oferta ha sido finalizada por ' || v_actor_name || '. Califica ahora.',
+            'Se finalizó desde el chat. Puedes dejar tu reseña ahora.',
+            'calificacion', '/private/calificar/' || v_oferta_id::text, false
+        );
+
+        -- Notificación al trabajador: lleva a perfil
+        INSERT INTO public.notificaciones (
+            usuario_id, tipo, chat_id, oferta_id, emisor_id,
+            titulo, cuerpo, destino, destino_path, is_read
+        ) VALUES (
+            v_trabajador_id, 'oferta_finalizada', p_chat_id, v_oferta_id, p_user_id,
+            'La oferta ha sido finalizada por ' || v_actor_name || '.',
+            'La oferta quedó finalizada. Revisa tu perfil.',
+            'perfil', '/private/perfil', false
+        );
+    END;
+    
     RETURN true;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

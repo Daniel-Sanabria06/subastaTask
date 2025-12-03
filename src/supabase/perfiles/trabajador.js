@@ -288,3 +288,88 @@ export const buscarPerfilesTrabajadores = async (terminoBusqueda) => {
     };
   }
 };
+
+export const listarPerfilesTrabajadores = async (filtros = {}) => {
+  try {
+    const {
+      q,
+      ciudad,
+      profesion,
+      habilidad,
+      servicio,
+      tarifaMin,
+      tarifaMax,
+      calificacionMin,
+      disponibilidad
+    } = filtros || {};
+
+    let idsFiltrados = null;
+    let requiereTrabajadores = Boolean(ciudad || profesion || habilidad);
+
+    if (requiereTrabajadores || q) {
+      let qTrab = supabase
+        .from('trabajadores')
+        .select('id')
+        .eq('estado_cuenta', 'activa');
+
+      if (ciudad) qTrab = qTrab.ilike('ciudad', `%${ciudad}%`);
+      if (profesion) qTrab = qTrab.ilike('profesion', `%${profesion}%`);
+      if (habilidad) qTrab = qTrab.contains('habilidades', [habilidad]);
+      if (q) {
+        try {
+          qTrab = qTrab.or(`nombre_completo.ilike.%${q}%,profesion.ilike.%${q}%,ciudad.ilike.%${q}%`);
+        } catch (err) {
+          console.warn('Fallo OR en trabajadores con q', err);
+        }
+      }
+
+      const { data: trabajadoresMatch, error: errTrab } = await qTrab;
+      if (errTrab) throw errTrab;
+      idsFiltrados = (trabajadoresMatch || []).map(t => t.id);
+      if (requiereTrabajadores && !idsFiltrados.length) {
+        // Si se solicitaron filtros propios de trabajadores y no hay coincidencias,
+        // no hace falta consultar perfil_trabajador
+        return { success: true, data: [], error: null };
+      }
+    }
+
+    let query = supabase
+      .from('perfil_trabajador')
+      .select(`
+        *,
+        trabajadores:trabajador_id (
+          nombre_completo,
+          ciudad,
+          profesion,
+          habilidades
+        )
+      `)
+      .order('calificacion_promedio', { ascending: false });
+
+    const disp = disponibilidad || 'disponible';
+    query = query.eq('disponibilidad', disp);
+
+    if (idsFiltrados) query = query.in('trabajador_id', idsFiltrados);
+    if (servicio) query = query.contains('servicios_ofrecidos', [servicio]);
+    if (typeof tarifaMin === 'number') query = query.gte('tarifa_por_hora', tarifaMin);
+    if (typeof tarifaMax === 'number') query = query.lte('tarifa_por_hora', tarifaMax);
+    if (typeof calificacionMin === 'number') query = query.gte('calificacion_promedio', calificacionMin);
+    if (q) {
+      try {
+        query = query.or(
+          `nombre_perfil.ilike.%${q}%,experiencia_laboral.ilike.%${q}%,descripcion_personal.ilike.%${q}%`
+        );
+      } catch (err) {
+        console.warn('Fallo al aplicar filtro de búsqueda', err);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return { success: true, data: data || [], error: null };
+  } catch (error) {
+    console.error('Error al listar perfiles de trabajadores con filtros:', error);
+    return { success: false, data: [], error };
+  }
+};

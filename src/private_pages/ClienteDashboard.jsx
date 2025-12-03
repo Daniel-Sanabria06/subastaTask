@@ -18,6 +18,7 @@ import {
 import ClienteProfileForm from '../components/ClienteProfileForm';
 // Reajuste de imports: usamos solo creación/listado aquí. La edición/eliminación se delega a componentes externos.
 import { listarPublicacionesCliente, crearPublicacion, CATEGORIAS_SERVICIO } from '../supabase/publicaciones.js';
+import { listarTrabajadoresPublicos } from '../supabase/supabaseClient.js';
 // Nuevos componentes extraídos a otra carpeta para mantener el dashboard limpio
 import EditorPublicacion from '../caracteristicas/publicaciones/EditorPublicacion.jsx';
 import EliminarPublicacionButton from '../caracteristicas/publicaciones/EliminarPublicacionButton.jsx';
@@ -82,6 +83,13 @@ const ClienteDashboard = () => {
   const navegar = useNavigate();
   const location = useLocation();
 
+  const [trabLoading, setTrabLoading] = useState(false);
+  const [trabajadoresLista, setTrabajadoresLista] = useState([]);
+  const [qTrab, setQTrab] = useState('');
+  const [filtroCiudad, setFiltroCiudad] = useState('');
+  const [filtroProfesion, setFiltroProfesion] = useState('');
+  const [filtroHabilidad, setFiltroHabilidad] = useState('');
+
   // ===========================================================================
   // FUNCIONES AUXILIARES
   // ===========================================================================
@@ -94,6 +102,46 @@ const ClienteDashboard = () => {
     const semilla = userId ? userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
     return `https://picsum.photos/seed/${semilla}/100/100`;
   };
+
+  const cargarTrabajadoresInicial = async () => {
+    try {
+      setTrabLoading(true);
+      const res = await listarTrabajadoresPublicos({});
+      setTrabajadoresLista(res?.data || []);
+    } catch (error) {
+      console.error(error);
+      setTrabajadoresLista([]);
+    } finally {
+      setTrabLoading(false);
+    }
+  };
+
+  const ejecutarBusquedaTrabajadores = async () => {
+    try {
+      setTrabLoading(true);
+      const filtros = {
+        q: qTrab?.trim() || undefined,
+        ciudad: filtroCiudad?.trim() || undefined,
+        profesion: filtroProfesion?.trim() || undefined
+      };
+      const res = await listarTrabajadoresPublicos(filtros);
+      let lista = res?.data || [];
+      const hab = (filtroHabilidad || '').trim().toLowerCase();
+      if (hab) {
+        lista = lista.filter(t => Array.isArray(t?.habilidades) && t.habilidades.some(h => String(h).toLowerCase().includes(hab)));
+      }
+      setTrabajadoresLista(lista);
+    } catch (error) {
+      console.error(error);
+      setTrabajadoresLista([]);
+    } finally {
+      setTrabLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (pestañaActiva === 'trabajadores') cargarTrabajadoresInicial();
+  }, [pestañaActiva]);
 
   const obtenerAvatarUrl = (user) => {
     const meta = user?.user_metadata || {};
@@ -152,6 +200,7 @@ const ClienteDashboard = () => {
         setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
       }
     } catch (err) {
+      console.error(err);
       setMensaje({ texto: 'Error inesperado al actualizar avatar', tipo: 'error' });
     } finally {
       setSubiendoAvatar(false);
@@ -383,7 +432,7 @@ const ClienteDashboard = () => {
         return;
       }
       setPubSaving(true);
-      const { success, data, error } = await crearPublicacion(pubForm);
+      const { success, error } = await crearPublicacion(pubForm);
       if (!success) {
         setMensaje({ texto: error?.message || 'No se pudo crear la publicación', tipo: 'error' });
         return;
@@ -681,21 +730,22 @@ const ClienteDashboard = () => {
                               </div>
                               <div className="item-actions" style={{ display: 'flex', gap: 8 }}>
                               
-{/* En "Eliminadas" (por filtro o por estado del item) no se muestran Editar/Eliminar */}
-{(!filterText || pub?.state !== 'eliminada') && (
-  <>
+{/* En "Eliminadas" (por filtro o por estado calculado del item) no se muestran Editar/Eliminar */}
+{(listFiltroEstado !== 'eliminada' || pub?.estado_calculado !== 'eliminada') && (
+  <> 
     {/* Editar ahora solo abre el editor extraído */}
     <button
       className="btn btn-secondary"
-      onClick={() => { setEditingPub(pub.id); setPubSubView('edit'); }}
+      onClick={() => { setEditingPub(pub.id); setPubSubview('edit'); }}
     >
       Editar
     </button>
     {/* Eliminar delegado al componente externo con callbacks */}
-    <PublicationDeleteButton
-      publication={pub}
-      onSuccess={() => setPubPublications(prev => prev.filter(p => p.id !== pub.id))}
-      onError={(msg) => setMessage({ texto: msg, tipo: 'error' })}
+    <EliminarPublicacionButton
+      publicacion={pub}
+      onDeleted={(id) => setPublicaciones(prev => prev.filter(p => p.id !== id))}
+      onSuccess={(msg) => setMensaje({ texto: msg || 'Tu publicación fue eliminada con éxito', tipo: 'success' })}
+      onError={(msg) => setMensaje({ texto: msg, tipo: 'error' })}
     />
   </>
 )}
@@ -861,12 +911,80 @@ const ClienteDashboard = () => {
         {pestañaActiva === 'trabajadores' && (
           <div className="tab-content animate-fade-in">
             <h2 className="section-title">Buscar Trabajadores</h2>
-            <div className="empty-state">
-              <p>Aquí podrás buscar y contactar trabajadores calificados.</p>
-              <button className="btn btn-primary">
-                🔍 Explorar Trabajadores
+            <div className="filtros-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 8 }}>
+              <input
+                type="text"
+                className="form-control"
+                value={qTrab}
+                onChange={(e) => setQTrab(e.target.value)}
+                placeholder="Buscar por perfil, experiencia o descripción"
+              />
+              <input
+                type="text"
+                className="form-control"
+                value={filtroCiudad}
+                onChange={(e) => setFiltroCiudad(e.target.value)}
+                placeholder="Ciudad"
+              />
+              <input
+                type="text"
+                className="form-control"
+                value={filtroProfesion}
+                onChange={(e) => setFiltroProfesion(e.target.value)}
+                placeholder="Profesión"
+              />
+              <input
+                type="text"
+                className="form-control"
+                value={filtroHabilidad}
+                onChange={(e) => setFiltroHabilidad(e.target.value)}
+                placeholder="Habilidad"
+              />
+              <button className="btn btn-primary" onClick={ejecutarBusquedaTrabajadores} disabled={trabLoading}>
+                {trabLoading ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
+            {trabLoading ? (
+              <div className="loading-container">
+                <div className="spinner"></div>
+                <p>Cargando trabajadores...</p>
+              </div>
+            ) : (
+              <>
+                {trabajadoresLista.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No se encontraron trabajadores con los criterios seleccionados</p>
+                  </div>
+                ) : (
+                  <div className="items-grid">
+                    {trabajadoresLista.map((t) => (
+                      <div key={t.id} className="item-card">
+                        <div className="item-card-header">
+                          <h3 className="item-title">{t?.nombre_completo}</h3>
+                          <span className={`status-badge ${t?.estado_cuenta === 'activa' ? 'status-active' : 'status-inactive'}`}>
+                            {t?.estado_cuenta}
+                          </span>
+                        </div>
+                        <div className="meta-row">
+                          <div className="meta-item"><span className="label">Ciudad:</span>{t?.ciudad || '—'}</div>
+                          <div className="meta-item"><span className="label">Profesión:</span>{t?.profesion || '—'}</div>
+                          <div className="meta-item"><span className="label">Habilidades:</span>{Array.isArray(t?.habilidades) ? t.habilidades.join(', ') : '—'}</div>
+                        </div>
+                        <p className="item-desc">Trabajador activo. Contacta según tu necesidad.</p>
+                        <div className="item-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <small>{new Date(t?.created_at || Date.now()).toLocaleString('es-CO')}</small>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <a className="btn btn-secondary" href={`/trabajador/${t.id}`} target="_blank" rel="noopener noreferrer">
+                              Ver perfil público
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
