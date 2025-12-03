@@ -58,10 +58,10 @@ export const listarPublicacionesCliente = async (options = {}) => {
     if (errorAuth || !user) throw new Error('Usuario no autenticado');
 
     // Iniciar la consulta base
-  let query = supabase
-    .from('publicaciones')
-    .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, fecha_cierre, activa, created_at, updated_at')
-    .eq('cliente_id', user.id);
+    let query = supabase
+      .from('publicaciones')
+      .select('id, cliente_id, titulo, descripcion, categoria, categoria_otro, ciudad, precio_maximo, activa, created_at, updated_at')
+      .eq('cliente_id', user.id);
     
     // Aplicar filtros según las opciones
     if (options.soloActivas) {
@@ -96,20 +96,17 @@ export const listarPublicacionesCliente = async (options = {}) => {
       .from('ofertas')
       .select('publicacion_id')
       .eq('cliente_id', user.id)
-      .in('estado', ['aceptada','finalizada']);
+      .eq('estado', 'aceptada');
     if (errorAceptadas) throw errorAceptadas;
     const setAceptadas = new Set((ofertasAceptadas || []).map(o => o.publicacion_id));
 
     // Procesar los resultados para determinar el estado real de cada publicación
     const publicacionesConEstado = data.map(pub => {
       let estado = 'activa';
-      // Si existe una oferta aceptada/finalizada, la publicación se considera finalizada
-      if (setAceptadas.has(pub.id)) {
-        estado = 'finalizada';
-      } else if (pub.activa) {
+      if (pub.activa) {
         estado = setConOfertas.has(pub.id) ? 'con_ofertas' : 'activa';
       } else {
-        estado = 'eliminada';
+        estado = setAceptadas.has(pub.id) ? 'finalizada' : 'eliminada';
       }
       return {
         ...pub,
@@ -171,19 +168,6 @@ export const crearPublicacion = async ({
     validarCampoObligatorio(categoria, 'categoria');
     validarCampoObligatorio(ciudad, 'ciudad');
     validarCampoObligatorio(precio_maximo, 'precio_maximo');
-    // Fecha de cierre opcional: si viene, validar que sea válida y futura
-    let fechaISO = null;
-    if (fecha_cierre !== undefined && fecha_cierre !== null && String(fecha_cierre).trim() !== '') {
-      const fechaObj = new Date(fecha_cierre);
-      if (isNaN(fechaObj.getTime())) {
-        throw new Error('La fecha de cierre no es válida');
-      }
-      const ahora = new Date();
-      if (fechaObj <= ahora) {
-        throw new Error('La fecha de cierre debe ser futura');
-      }
-      fechaISO = fechaObj.toISOString();
-    }
 
     if (categoria === 'OTRO' && (!categoria_otro || categoria_otro.trim().length < 3)) {
       throw new Error('Especifica la categoría en "Otro" con al menos 3 caracteres');
@@ -355,24 +339,6 @@ export const actualizarPublicacion = async (id, {
     validarCampoObligatorio(categoria, 'categoria');
     validarCampoObligatorio(ciudad, 'ciudad');
     validarCampoObligatorio(precio_maximo, 'precio_maximo');
-    // Fecha de cierre opcional: si viene, validar que sea válida y futura
-    let fechaISO;
-    if (fecha_cierre !== undefined) {
-      if (fecha_cierre === null || String(fecha_cierre).trim() === '') {
-        // si se manda vacía, no actualizar el campo
-        fechaISO = undefined;
-      } else {
-        const fechaObj = new Date(fecha_cierre);
-        if (isNaN(fechaObj.getTime())) {
-          throw new Error('La fecha de cierre no es válida');
-        }
-        const ahora = new Date();
-        if (fechaObj <= ahora) {
-          throw new Error('La fecha de cierre debe ser futura');
-        }
-        fechaISO = fechaObj.toISOString();
-      }
-    }
 
     if (categoria === 'OTRO' && (!categoria_otro || categoria_otro.trim().length < 3)) {
       throw new Error('Especifica la categoría en "Otro" con al menos 3 caracteres');

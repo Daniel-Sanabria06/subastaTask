@@ -9,7 +9,6 @@ import PrivacyLabel from '../components/PrivacyLabel';
 import { CATEGORIAS_SERVICIO, listarPublicacionesActivas } from '../supabase/publicaciones.js';
 import { crearOferta, listarOfertasTrabajador } from '../supabase/ofertas.js';
 import { obtenerChatPorOferta, crearChat } from '../supabase/chat.js';
-import { subirDocumentoPDF, listarDocumentosTrabajador, obtenerSignedUrlParaDocumento } from '../supabase/documentos.js';
 import { listarResenasTrabajadorPaginadas, obtenerEstadisticasTrabajador } from '../supabase/reviews';
 import '../styles/Dashboard.css';
 
@@ -37,12 +36,6 @@ import '../styles/Dashboard.css';
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [documentos, setDocumentos] = useState([]);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [docTipo, setDocTipo] = useState('identidad');
-  const [docFile, setDocFile] = useState(null);
   // Estado para reseñas
   const [reseñasLoading, setReseñasLoading] = useState(false);
   const [reseñas, setReseñas] = useState([]);

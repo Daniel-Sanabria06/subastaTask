@@ -730,14 +730,14 @@ import '../styles/Dashboard.css';
                                 </button>
                               </div>
                               <div className="item-actions" style={{ display: 'flex', gap: 8 }}>
-
-{/* En publicaciones finalizadas o eliminadas NO se muestran Editar/Eliminar */}
-{(pub?.estado_calculado !== 'finalizada' && pub?.estado_calculado !== 'eliminada') && (
-  <>
+                              
+{/* En "Eliminadas" (por filtro o por estado calculado del item) no se muestran Editar/Eliminar */}
+{(listFiltroEstado !== 'eliminada' || pub?.estado_calculado !== 'eliminada') && (
+  <> 
     {/* Editar ahora solo abre el editor extraído */}
     <button
       className="btn btn-secondary"
-      onClick={() => { setEditingPub(pub); setPubSubview('edit'); }}
+      onClick={() => { setEditingPub(pub.id); setPubSubview('edit'); }}
     >
       Editar
     </button>
@@ -1184,30 +1184,3 @@ import '../styles/Dashboard.css';
 };
 
 export default ClienteDashboard;
-  // Helpers de estado visual basado en estado_calculado
-  const getEstadoClass = (pub) => {
-    switch (pub?.estado_calculado) {
-      case 'con_ofertas':
-        return 'status-with-offers';
-      case 'finalizada':
-      case 'eliminada':
-        return 'status-inactive';
-      case 'activa':
-      default:
-        return 'status-active';
-    }
-  };
-
-  const getEstadoTexto = (pub) => {
-    switch (pub?.estado_calculado) {
-      case 'con_ofertas':
-        return 'Con ofertas';
-      case 'finalizada':
-        return 'Finalizada';
-      case 'eliminada':
-        return 'Eliminada';
-      case 'activa':
-      default:
-        return 'Activa';
-    }
-  };
