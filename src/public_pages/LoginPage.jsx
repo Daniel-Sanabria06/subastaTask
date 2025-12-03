@@ -12,6 +12,7 @@ const LoginPage = () => {
     password: ''
   });
   const [magicStatus, setMagicStatus] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -120,7 +121,7 @@ const LoginPage = () => {
                 Contraseña
               </label>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 id="password"
                 name="password"
                 value={formData.password}
@@ -129,6 +130,9 @@ const LoginPage = () => {
                 placeholder="********"
                 required
               />
+              <button type="button" className="btn-secondary" onClick={() => setShowPassword((v) => !v)} style={{ marginTop: 6 }}>
+                {showPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
             </div>
 
             <div className="form-options">

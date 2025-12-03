@@ -14,6 +14,8 @@ const OlvidePassword = () => {
   const [isRecovery, setIsRecovery] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Snackbar para avisos bonitos
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -234,7 +236,7 @@ const OlvidePassword = () => {
                   Nueva Contraseña
                 </label>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   id="password"
                   name="password"
                   value={password}
@@ -244,6 +246,9 @@ const OlvidePassword = () => {
                   required
                   disabled={isLoading}
                 />
+                <button type="button" className="btn-secondary" onClick={() => setShowPassword((v) => !v)} style={{ marginTop: 6 }}>
+                  {showPassword ? 'Ocultar' : 'Mostrar'}
+                </button>
               </div>
 
               <div className="form-group">
@@ -251,7 +256,7 @@ const OlvidePassword = () => {
                   Confirmar Nueva Contraseña
                 </label>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   id="confirmPassword"
                   name="confirmPassword"
                   value={confirmPassword}
@@ -261,6 +266,9 @@ const OlvidePassword = () => {
                   required
                   disabled={isLoading}
                 />
+                <button type="button" className="btn-secondary" onClick={() => setShowConfirmPassword((v) => !v)} style={{ marginTop: 6 }}>
+                  {showConfirmPassword ? 'Ocultar' : 'Mostrar'}
+                </button>
               </div>
 
               {message && (

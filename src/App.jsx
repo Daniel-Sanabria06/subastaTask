@@ -19,7 +19,7 @@ import ClienteDashboard from './private_pages/ClienteDashboard';
 import TrabajadorDashboard from './private_pages/TrabajadorDashboard';
 import PublicacionDetalle from './private_pages/PublicacionDetalle';
 import OfertaDetalle from './private_pages/OfertaDetalle';
-import ResetPasswordPage from './public_pages/OlvidePassword';
+import OlvidePassword from './public_pages/OlvidePassword';
 import AdminPanel from './admin/AdminPanel';
 import ComoFunciona from './public_pages/ComoFunciona';
 import Servicios from './public_pages/Servicios';
@@ -161,7 +161,7 @@ function App() {
                 </RoleRoute>
               } 
             />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/reset-password" element={<OlvidePassword />} />
             
             {/* Rutas públicas para perfiles compartibles */}
             <Route path="/cliente/:id" element={<PerfilCliente />} />
@@ -169,6 +169,22 @@ function App() {
             
             <Route 
               path="/admin" 
+              element={
+                <RoleRoute allow={["administrador"]}>
+                  <AdminPanel />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="/admin/verificacion" 
+              element={
+                <RoleRoute allow={["administrador"]}>
+                  <AdminPanel />
+                </RoleRoute>
+              } 
+            />
+            <Route 
+              path="/admin/verifiacion" 
               element={
                 <RoleRoute allow={["administrador"]}>
                   <AdminPanel />
