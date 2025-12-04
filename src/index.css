@@ -8,17 +8,19 @@
 
   /* Acentos temáticos */
   --color-primary: #1a56a8;    /* Azul pingüino profesional */
-  --color-secondary: #10b981;  /* Mantenido si usas para éxitos, pero opcional */
-  --color-accent: #d4af37;     /* Dorado suave navideño (en lugar de púrpura) */
+  --color-secondary: #10b981;  /* Éxitos */
+  --color-accent: #d4af37;     /* Dorado suave navideño */
 
   /* Sombras modernas */
-  --shadow-sm: 0 1px 2px rgba(10, 37, 64, 0.06);
-  --shadow: 0 2px 6px rgba(10, 37, 64, 0.1);
-  --shadow-md: 0 4px 12px rgba(10, 37, 64, 0.12);
-  --shadow-lg: 0 10px 25px rgba(10, 37, 64, 0.15);
+  --shadow-sm: 0 2px 5px rgba(10, 37, 64, 0.09);
+  --shadow: 0 4px 12px rgba(10, 37, 64, 0.14);
+  --shadow-md: 0 7px 20px rgba(10, 37, 64, 0.18);
+  --shadow-lg: 0 14px 36px rgba(10, 37, 64, 0.24);
+  --shadow-xl: 0 18px 44px rgba(10, 37, 64, 0.28);
 
-  --border-radius: 0.75rem; /* Más redondeado y moderno */
+  --border-radius: 0.85rem; /* Más redondeado y moderno */
   --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.4, 1);
+  --transition-fast: all 0.2s cubic-bezier(0.2, 0.8, 0.4, 1);
 }
 
 /* === Modo oscuro === */
@@ -31,12 +33,13 @@
 
   --color-primary: #3a86ff;
   --color-secondary: #34d399;
-  --color-accent: #e0c060; /* Dorado cálido para modo oscuro */
+  --color-accent: #e0c060;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.28);
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.34);
+  --shadow-md: 0 9px 26px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.46);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.52);
 }
 
 /* === Estilos base === */
@@ -61,7 +64,7 @@ body {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1.25rem;
+  padding: 0 1.6rem;
 }
 
 .flex {
@@ -80,19 +83,26 @@ body {
   text-align: center;
 }
 
-/* Espaciado */
-.mb-8 {
-  margin-bottom: 2rem;
-}
+/* ✅ Espaciado modular (escala 4px) */
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mb-8 { margin-bottom: 2rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-6 { margin-top: 1.5rem; }
+.mt-8 { margin-top: 2rem; }
+.p-2 { padding: 0.5rem; }
+.p-4 { padding: 1rem; }
+.p-6 { padding: 1.5rem; }
+.p-8 { padding: 2rem; }
 
-.mt-8 {
-  margin-top: 2rem;
-}
-
-/* Botones */
+/* ✅ Botones universales — reutilizados en todos los componentes */
 .btn {
-  display: inline-block;
-  padding: 0.65rem 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 2rem;
   border-radius: var(--border-radius);
   font-weight: 600;
   text-align: center;
@@ -100,8 +110,9 @@ body {
   transition: var(--transition);
   text-decoration: none;
   border: none;
-  font-size: 1rem;
-  letter-spacing: 0.3px;
+  font-size: 1.08rem;
+  letter-spacing: 0.4px;
+  gap: 10px;
 }
 
 .btn-primary {
@@ -109,7 +120,6 @@ body {
   color: var(--color-white);
   box-shadow: var(--shadow-sm);
 }
-
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow);
@@ -119,22 +129,45 @@ body {
   background: linear-gradient(135deg, var(--color-secondary), #0da57a);
   color: var(--color-white);
 }
-
 .btn-secondary:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow);
 }
 
-/* Animaciones */
+/* ✅ Animaciones */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.5s ease-in-out;
+  animation: fadeIn 0.55s ease-in-out;
 }
 
 .opacity-0 {
   opacity: 0;
+}
+
+/* ✅ Focus accesible (WCAG) */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--border-radius);
+}
+
+/* ✅ Scroll suave */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ✅ Reset de listas */
+ul, ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
 }

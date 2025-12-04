@@ -11,7 +11,9 @@ export function useSessionTimeout() {
     const exclude = ['/login', '/register', '/reset-password'];
     if (exclude.includes(location.pathname)) return;
 
-    const MAX_INACTIVITY = 1 * 60 * 1000; // 1 minuto
+    // CHANGED: 10 minutes of inactivity
+    const MAX_INACTIVITY = 10 * 60 * 1000; // 10 minutos
+
     let last = Date.now();
 
     const update = () => (last = Date.now());

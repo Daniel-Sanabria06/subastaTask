@@ -1,120 +1,96 @@
-/**
- * Estilos para Perfiles Públicos - SubastaTask
- * 
- * Este archivo contiene todos los estilos necesarios para las páginas
- * de perfiles públicos de clientes y trabajadores.
- * 
- * Características del diseño:
- * - Diseño minimalista y moderno
- * - Soporte completo para modo claro y oscuro
- * - Diseño responsivo para móviles, tablets y desktop
- * - Animaciones suaves y transiciones
- * - Accesibilidad mejorada
- * 
- * Componentes estilizados:
- * - Contenedor principal del perfil
- * - Tarjeta de perfil con información
- * - Avatar circular con inicial
- * - Secciones de información
- * - Tags de habilidades
- * - Botones de contacto
- * - Estados de carga y error
- * 
- * @author SubastaTask
- * @version 1.0.0
- */
-
-/* ===== CONTENEDOR PRINCIPAL ===== */
-/* Contenedor principal que centra y da estructura a toda la página */
 .perfil-publico-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem 1rem;
+  background: linear-gradient(135deg, #1a56a8 0%, #0d3e77 100%);
+  padding: 2.8rem 1.4rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Modo oscuro para el contenedor principal */
-[data-theme="dark"] .perfil-publico-container {
-  background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
-}
-
-/* ===== TARJETA DE PERFIL ===== */
-/* Tarjeta principal que contiene toda la información del perfil */
-.perfil-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 2.5rem;
-  max-width: 500px;
+.perfil-publico-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.1),
-    0 8px 16px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05) 1px, transparent 1px),
+    radial-gradient(circle at 80% 80%, rgba(212,175,55,0.03) 1px, transparent 2px);
+  background-size: 64px 64px;
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* Efecto hover para la tarjeta */
+[data-theme="dark"] .perfil-publico-container {
+  background: linear-gradient(135deg, #0a1220 0%, #0f1a2b 100%);
+}
+
+.perfil-card {
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(26px);
+  border-radius: 30px;
+  padding: 36px;
+  max-width: 540px;
+  width: 100%;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.2), 0 12px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  transition: all 0.45s cubic-bezier(0.2, 0.8, 0.4, 1);
+  position: relative;
+  z-index: 1;
+}
+
 .perfil-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 12px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-6px);
+  box-shadow: 0 34px 72px rgba(0, 0, 0, 0.28), 0 16px 32px rgba(0, 0, 0, 0.16);
 }
 
-/* Modo oscuro para la tarjeta */
 [data-theme="dark"] .perfil-card {
-  background: rgba(26, 32, 44, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(26, 32, 44, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   color: #e2e8f0;
 }
 
-/* ===== ENCABEZADO DEL PERFIL ===== */
-/* Sección superior con avatar, nombre y tipo de usuario */
 .perfil-header {
   text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid #f1f5f9;
+  margin-bottom: 2.4rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid #e2e8f0;
 }
 
 [data-theme="dark"] .perfil-header {
   border-bottom-color: #4a5568;
 }
 
-/* ===== AVATAR ===== */
-/* Avatar circular con inicial del nombre */
 .perfil-avatar {
-  width: 100px;
-  height: 100px;
+  width: 114px;
+  height: 114px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--accent-primary), #0d3e77);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1rem;
-  font-size: 2.5rem;
+  margin: 0 auto 1.4rem;
+  font-size: 2.9rem;
   font-weight: 700;
   color: white;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-  transition: transform 0.3s ease;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 9px 22px rgba(26, 86, 168, 0.42);
+  transition: transform 0.35s ease;
 }
 
 .perfil-avatar:hover {
-  transform: scale(1.05);
+  transform: scale(1.08) rotate(5deg);
 }
 
-/* ===== INFORMACIÓN DEL PERFIL ===== */
-/* Nombre del usuario */
 .perfil-nombre {
-  font-size: 2rem;
+  font-size: 2.3rem;
   font-weight: 700;
   color: #1a202c;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.7rem 0;
   line-height: 1.2;
 }
 
@@ -122,246 +98,208 @@
   color: #f7fafc;
 }
 
-/* Tipo de usuario (Cliente/Trabajador) */
 .perfil-tipo {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   color: #64748b;
-  margin: 0 0 1rem 0;
-  font-weight: 500;
+  margin: 0 0 1.3rem 0;
+  font-weight: 600;
 }
 
 [data-theme="dark"] .perfil-tipo {
   color: #a0aec0;
 }
 
-/* Estado de la cuenta para trabajadores */
 .estado-cuenta {
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 26px;
+  font-size: 0.98rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  margin-top: 10px;
 }
 
 .estado-activo {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: rgba(76, 175, 80, 0.18);
+  color: #1b5e20;
+  border: 1px solid #c8e6c9;
 }
 
 .estado-inactivo {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: rgba(244, 67, 54, 0.18);
+  color: #c62828;
+  border: 1px solid #ffcdd2;
 }
 
-[data-theme="dark"] .estado-activo {
-  background: #2d5a3d;
-  color: #68d391;
-  border-color: #38a169;
+.estado-verificado {
+  background: rgba(34, 197, 94, 0.18);
+  color: #166534;
+  border: 1px solid #bbf7d0;
 }
 
-[data-theme="dark"] .estado-inactivo {
-  background: #5a2d2d;
-  color: #fc8181;
-  border-color: #e53e3e;
-}
-
-/* ===== SECCIÓN DE INFORMACIÓN ===== */
-/* Contenedor para los elementos de información */
 .perfil-info {
-  margin-bottom: 2rem;
+  margin-bottom: 2.4rem;
 }
 
-/* Elemento individual de información */
 .info-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 0;
+  padding: 1.3rem 0;
   border-bottom: 1px solid #f1f5f9;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.25s ease;
 }
 
 .info-item:hover {
-  background-color: rgba(102, 126, 234, 0.05);
-  border-radius: 8px;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  background-color: rgba(26, 86, 168, 0.05);
+  border-radius: 12px;
+  padding-left: 1.3rem;
+  padding-right: 1.3rem;
 }
 
 .info-item:last-child {
   border-bottom: none;
 }
 
-[data-theme="dark"] .info-item {
-  border-bottom-color: #4a5568;
-}
-
-[data-theme="dark"] .info-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Etiqueta de la información */
 .info-label {
   font-weight: 600;
   color: #4a5568;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
 }
 
 [data-theme="dark"] .info-label {
   color: #a0aec0;
 }
 
-/* Valor de la información */
 .info-value {
   color: #2d3748;
   font-weight: 500;
   text-align: right;
+  font-size: 1.1rem;
 }
 
 [data-theme="dark"] .info-value {
   color: #e2e8f0;
 }
 
-/* ===== SECCIÓN DE HABILIDADES ===== */
-/* Contenedor para las habilidades del trabajador */
 .perfil-habilidades {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
+  margin-bottom: 2.4rem;
+  padding: 2.2rem;
   background: #f8fafc;
-  border-radius: 16px;
+  border-radius: 22px;
   border: 1px solid #e2e8f0;
 }
 
-[data-theme="dark"] .perfil-habilidades {
-  background: #2d3748;
-  border-color: #4a5568;
-}
-
 .perfil-habilidades h3 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.4rem 0;
   color: #2d3748;
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: 1.35rem;
+  font-weight: 700;
 }
 
-[data-theme="dark"] .perfil-habilidades h3 {
-  color: #f7fafc;
-}
-
-/* Contenedor de tags de habilidades */
 .habilidades-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-/* Tag individual de habilidad */
 .habilidad-tag {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--accent-primary), #0d3e77);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
-  transition: transform 0.2s ease;
+  padding: 9px 16px;
+  border-radius: 26px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(26, 86, 168, 0.28);
+  transition: transform 0.25s ease;
 }
 
 .habilidad-tag:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 6px 14px rgba(26, 86, 168, 0.38);
 }
 
-/* ===== SECCIÓN DE CONTACTO ===== */
-/* Información y botones de contacto */
+.perfil-reseñas {
+  margin-bottom: 2.4rem;
+}
+
+.perfil-reseñas h3 {
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
 .perfil-contacto {
   background: #f8fafc;
-  padding: 2rem;
-  border-radius: 16px;
+  padding: 2.4rem;
+  border-radius: 22px;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.4rem;
   border: 1px solid #e2e8f0;
-}
-
-[data-theme="dark"] .perfil-contacto {
-  background: #2d3748;
-  border-color: #4a5568;
 }
 
 .perfil-contacto h3 {
   color: #2d3748;
-  margin: 0 0 1rem 0;
-  font-size: 1.3rem;
-  font-weight: 600;
-}
-
-[data-theme="dark"] .perfil-contacto h3 {
-  color: #f7fafc;
+  margin: 0 0 1.4rem 0;
+  font-size: 1.45rem;
+  font-weight: 700;
 }
 
 .perfil-contacto p {
   color: #64748b;
-  margin: 0 0 1.5rem 0;
-  line-height: 1.6;
+  margin: 0 0 2rem 0;
+  line-height: 1.72;
+  font-size: 1.1rem;
 }
 
-[data-theme="dark"] .perfil-contacto p {
-  color: #a0aec0;
-}
-
-/* Contenedor de botones de contacto */
 .contacto-buttons {
   display: flex;
-  gap: 1rem;
+  gap: 1.4rem;
   justify-content: center;
   flex-wrap: wrap;
 }
 
-/* Botones de contacto */
 .btn-contacto {
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
+  padding: 14px 24px;
+  border-radius: 16px;
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   transition: all 0.3s ease;
   border: 2px solid transparent;
-  min-width: 140px;
+  min-width: 170px;
   text-align: center;
+  box-shadow: 0 5px 12px rgba(0,0,0,0.1);
 }
 
 .btn-registro {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--accent-primary), #0d3e77);
   color: white;
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 7px 18px rgba(26, 86, 168, 0.32);
 }
 
 .btn-registro:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(26, 86, 168, 0.42);
 }
 
 .btn-login {
   background: transparent;
-  color: #667eea;
-  border-color: #667eea;
+  color: var(--accent-primary);
+  border: 2px solid var(--accent-primary);
 }
 
 .btn-login:hover {
-  background: #667eea;
+  background: var(--accent-primary);
   color: white;
-  transform: translateY(-2px);
+  transform: translateY(-3px);
 }
 
-/* ===== PIE DEL PERFIL ===== */
-/* Sección inferior con enlace de regreso */
 .perfil-footer {
   text-align: center;
-  padding-top: 1.5rem;
+  padding-top: 2rem;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -370,33 +308,32 @@
 }
 
 .link-inicio {
-  color: #667eea;
+  color: var(--accent-primary);
   text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s ease;
+  font-weight: 600;
+  transition: color 0.25s ease;
 }
 
 .link-inicio:hover {
-  color: #764ba2;
+  color: #0d3e77;
   text-decoration: underline;
 }
 
-/* ===== ESTADOS DE CARGA Y ERROR ===== */
-/* Estado de carga */
-.perfil-loading {
+.perfil-loading,
+.perfil-error {
   text-align: center;
-  padding: 3rem;
+  padding: 3.8rem;
   color: white;
 }
 
 .loading-spinner {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   border: 4px solid rgba(255, 255, 255, 0.3);
   border-top: 4px solid white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+  margin: 0 auto 1.4rem;
 }
 
 @keyframes spin {
@@ -404,65 +341,49 @@
   100% { transform: rotate(360deg); }
 }
 
-.perfil-loading p {
-  font-size: 1.1rem;
-  font-weight: 500;
-}
-
-/* Estado de error */
-.perfil-error {
-  text-align: center;
-  padding: 3rem;
-  color: white;
-}
-
-.perfil-error h2 {
-  margin: 0 0 1rem 0;
-  font-size: 1.5rem;
-}
-
+.perfil-loading p,
 .perfil-error p {
-  margin: 0 0 2rem 0;
-  font-size: 1.1rem;
-  opacity: 0.9;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .btn-volver {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.28);
   color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
+  padding: 14px 26px;
+  border-radius: 16px;
   text-decoration: none;
   font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.38);
   transition: all 0.3s ease;
 }
 
+
+
 .btn-volver:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.38);
   transform: translateY(-2px);
 }
 
-/* ===== DISEÑO RESPONSIVO ===== */
-/* Tablets y pantallas medianas */
 @media (max-width: 768px) {
   .perfil-publico-container {
-    padding: 1rem;
+    padding: 1.8rem;
   }
   
   .perfil-card {
-    padding: 2rem;
+    padding: 26px;
     margin: 0;
+    border-radius: 22px;
   }
   
   .perfil-avatar {
-    width: 80px;
-    height: 80px;
-    font-size: 2rem;
+    width: 94px;
+    height: 94px;
+    font-size: 2.4rem;
   }
   
   .perfil-nombre {
-    font-size: 1.7rem;
+    font-size: 1.9rem;
   }
   
   .contacto-buttons {
@@ -472,35 +393,34 @@
   
   .btn-contacto {
     width: 100%;
-    max-width: 250px;
+    max-width: 270px;
   }
 }
 
-/* Móviles */
 @media (max-width: 480px) {
   .perfil-publico-container {
-    padding: 0.5rem;
+    padding: 1rem;
   }
   
   .perfil-card {
-    padding: 1.5rem;
-    border-radius: 16px;
+    padding: 22px;
+    border-radius: 20px;
   }
   
   .perfil-avatar {
-    width: 70px;
-    height: 70px;
-    font-size: 1.8rem;
+    width: 80px;
+    height: 80px;
+    font-size: 2.1rem;
   }
   
   .perfil-nombre {
-    font-size: 1.5rem;
+    font-size: 1.7rem;
   }
   
   .info-item {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 0.7rem;
   }
   
   .info-value {
@@ -512,6 +432,6 @@
   }
   
   .perfil-contacto {
-    padding: 1.5rem;
+    padding: 2rem;
   }
 }

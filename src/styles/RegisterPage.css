@@ -1,215 +1,256 @@
 /* RegisterPage.css - Estilo navideño de pingüino: invernal, tecnológico y hermoso */
 
 .register-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    padding: 1.5rem;
-    background-image: 
-      radial-gradient(circle at 25% 20%, rgba(26, 86, 168, 0.03) 1px, transparent 2px),
-      radial-gradient(circle at 75% 80%, rgba(212, 175, 55, 0.015) 1px, transparent 2px);
-    background-size: 80px 80px;
-  }
-  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background-image: 
+    radial-gradient(circle at 25% 20%, rgba(26, 86, 168, 0.035) 1px, transparent 2px),
+    radial-gradient(circle at 75% 80%, rgba(212, 175, 55, 0.02) 1px, transparent 2px);
+  background-size: 84px 84px;
+}
+
+.register-form-wrapper {
+  width: 100%;
+  max-width: 560px;
+  background-color: var(--card-bg);
+  border-radius: 22px;
+  box-shadow: 
+    0 12px 36px rgba(10, 37, 64, 0.22),
+    0 5px 16px rgba(10, 37, 64, 0.14);
+  border: 1px solid var(--border-color);
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.register-form-wrapper::before {
+  content: "🐧";
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 2rem;
+  opacity: 0.65;
+  transform: rotate(-10deg);
+  pointer-events: none;
+  animation: gentleBob 4.5s ease-in-out infinite;
+}
+
+@keyframes gentleBob {
+  0%, 100% { transform: rotate(-10deg) translateY(0); }
+  50% { transform: rotate(-8deg) translateY(-4px); }
+}
+
+.app-title {
+  font-size: 2.4rem;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+
+.form-subtitle {
+  color: var(--text-secondary);
+  margin-top: 0.6rem;
+  font-size: 1.15rem;
+  text-align: center;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.card {
+  background-color: var(--card-bg);
+  border-radius: 18px;
+  padding: 24px;
+  margin-top: 1.8rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.form-group {
+  margin-bottom: 1.6rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1.02rem;
+}
+
+.input {
+  width: 100%;
+  padding: 14px 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 1.05rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: all 0.3s;
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(26, 86, 168, 0.22);
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+
+/* Grupo de radios */
+.radio-group {
+  display: flex;
+  gap: 1.4rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.radio {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.radio-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 1.02rem;
+}
+
+/* Botón de registro */
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent-primary), #1a70c0);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 1.08rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 16px rgba(26, 86, 168, 0.28);
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(26, 86, 168, 0.38);
+}
+
+/* Footer del formulario */
+.form-footer {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.text-muted {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.link-primary {
+  color: var(--accent-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.25s;
+}
+
+.link-primary:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.back-link {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.link-muted {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  text-decoration: none;
+  transition: color 0.25s;
+}
+
+.link-muted:hover {
+  color: var(--accent-primary);
+}
+
+/* Validación de contraseña */
+.password-validation {
+  background: var(--snow);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+.password-validation ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Checkbox de términos */
+.form-group label[for="aceptaTerminos"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* ✅ Mejorado: Logo con mejor proporción */
+.logo-auth {
+  height: 72px;
+  margin-bottom: 20px;
+  opacity: 0.92;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.12));
+}
+
+/* Responsive */
+@media (max-width: 520px) {
   .register-form-wrapper {
-    width: 100%;
-    max-width: 520px;
-    background-color: var(--card-bg);
+    padding: 24px 20px;
     border-radius: 20px;
-    box-shadow: 
-      0 10px 30px rgba(10, 37, 64, 0.18),
-      0 4px 12px rgba(10, 37, 64, 0.12);
-    border: 1px solid var(--border-color);
-    padding: 2.5rem;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .register-form-wrapper::before {
-    content: "🐧";
-    position: absolute;
-    top: 18px;
-    right: 18px;
-    font-size: 1.8rem;
-    opacity: 0.6;
-    transform: rotate(-10deg);
-    pointer-events: none;
-    animation: gentleBob 4.5s ease-in-out infinite;
-  }
-  
-  @keyframes gentleBob {
-    0%, 100% { transform: rotate(-10deg) translateY(0); }
-    50% { transform: rotate(-8deg) translateY(-3px); }
-  }
-  
-  .app-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    margin: 0;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-gold));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-align: center;
-  }
-  
-  .form-subtitle {
-    color: var(--text-secondary);
-    margin-top: 0.5rem;
-    font-size: 1.1rem;
-    text-align: center;
-  }
-  
-  .card {
-    background-color: var(--card-bg);
-    border-radius: 16px;
-    padding: 1.8rem;
-    margin-top: 1.5rem;
-    border: 1px solid var(--border-color);
-  }
-  
-  .form-group {
-    margin-bottom: 1.4rem;
-  }
-  
-  .form-label {
-    display: block;
-    margin-bottom: 0.6rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 0.95rem;
-  }
-  
-  .input {
-    width: 100%;
-    padding: 13px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    font-size: 1rem;
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    transition: all 0.3s;
-  }
-  
-  .input:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(26, 86, 168, 0.2);
-  }
-  
-  .input::placeholder {
-    color: var(--text-secondary);
-    opacity: 0.7;
-  }
-  
-  /* Grupo de radios */
-  .radio-group {
-    display: flex;
-    gap: 1.2rem;
-    margin-top: 0.5rem;
-  }
-  
-  .radio-option {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .radio {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--accent-primary);
-    cursor: pointer;
-  }
-  
-  .radio-label {
-    font-weight: 500;
-    color: var(--text-primary);
-    cursor: pointer;
-  }
-  
-  /* Botón de registro */
-  .btn-primary {
-    width: 100%;
-    padding: 14px;
-    background: linear-gradient(135deg, var(--accent-primary), #1a70c0);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 14px rgba(26, 86, 168, 0.25);
-  }
-  
-  .btn-primary:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 18px rgba(26, 86, 168, 0.35);
-  }
-  
-  /* Footer del formulario */
-  .form-footer {
-    margin-top: 1.8rem;
-    padding-top: 1.8rem;
-    border-top: 1px solid var(--border-color);
-  }
-  
-  .text-muted {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-  }
-  
-  .link-primary {
-    color: var(--accent-primary);
-    font-weight: 600;
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-  
-  .link-primary:hover {
-    color: var(--accent-hover);
-    text-decoration: underline;
-  }
-  
-  .back-link {
-    margin-top: 2rem;
-    text-align: center;
-  }
-  
-  .link-muted {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-  
-  .link-muted:hover {
-    color: var(--accent-primary);
-  }
-  
-  /* Responsive */
-  @media (max-width: 520px) {
-    .register-form-wrapper {
-      padding: 2rem 1.5rem;
-      border-radius: 18px;
-    }
-  
-    .app-title {
-      font-size: 1.9rem;
-    }
-  
-    .radio-group {
-      flex-direction: column;
-      gap: 0.8rem;
-    }
   }
 
-  .logo-auth {
-    height: 60px;
-    margin-bottom: 16px;
-    opacity: 0.9;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  .app-title {
+    font-size: 2rem;
   }
+
+  .radio-group {
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .btn-primary {
+    font-size: 1.02rem;
+    padding: 12px;
+  }
+}
