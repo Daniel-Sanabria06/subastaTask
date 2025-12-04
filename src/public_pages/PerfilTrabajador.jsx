@@ -17,9 +17,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { FaCheckCircle } from 'react-icons/fa';
 import { useParams, Link } from 'react-router-dom';
 import { supabase, getTrabajadorPublico } from '../supabase/supabaseClient';
-import { obtenerEstadoVerificacionPublico, listarDocumentosTrabajador } from '../supabase/documentos';
+import { obtenerEstadoVerificacionPublico, listarDocumentosTrabajador, listarTodosDocumentosVerificacion } from '../supabase/documentos';
 import { obtenerEstadisticasTrabajador, listarResenasRecientesTrabajador } from '../supabase/reviews';
 import '../styles/PerfilPublico.css';
 
@@ -49,29 +50,86 @@ const PerfilTrabajador = () => {
         
         if (data) {
           setTrabajador(data);
+          if (typeof data.verificado !== 'undefined') {
+            setVerificado(!!data.verificado);
+          }
           try {
             const { success, data: vData } = await obtenerEstadoVerificacionPublico(data.id);
             if (success) {
-              const flag = Boolean(
-                vData?.verificado ??
-                vData?.verified ??
-                vData?.isVerified ??
-                (Array.isArray(vData?.documentos) ? vData.documentos.some((d) => d.estado === 'aprobado') : undefined) ??
-                (vData?.estado === 'aprobado')
-              );
-              setVerificado(flag);
+              const deriveVerified = (v) => {
+                const bools = [
+                  v?.verificado,
+                  v?.verified,
+                  v?.isVerified,
+                  v?.is_verified,
+                  v?.esta_verificado,
+                  v?.data?.verificado,
+                  v?.data?.verified,
+                  v?.data?.isVerified,
+                  v?.data?.is_verified,
+                  v?.data?.esta_verificado,
+                ];
+                if (bools.some((x) => x === true)) return true;
+                const estados = [
+                  v?.estado,
+                  v?.status,
+                  v?.estado_verificacion,
+                  v?.data?.estado,
+                  v?.data?.status,
+                  v?.data?.estado_verificacion,
+                ].map((s) => (typeof s === 'string' ? s.toLowerCase() : s));
+                if (estados.includes('aprobado') || estados.includes('approved') || estados.includes('verificado') || estados.includes('verified')) return true;
+                const docs = Array.isArray(v?.documentos) ? v.documentos : (Array.isArray(v?.data?.documentos) ? v.data.documentos : []);
+                if (docs.some((d) => (d?.estado || '').toLowerCase() === 'aprobado' || (d?.estado || '').toLowerCase() === 'approved')) return true;
+                const count = Number(v?.aprobados ?? v?.count_aprobados ?? v?.data?.aprobados ?? v?.data?.count_aprobados ?? 0);
+                if (count > 0) return true;
+                return false;
+              };
+              const efVerified = deriveVerified(vData);
+              if (efVerified) setVerificado((prev) => prev || true);
             }
-          } catch {}
+          } catch (e) {
+            console.warn('Fallo verificación por Edge Function:', e);
+          }
+
+          try {
+            const { data: docs } = await supabase
+              .from('documentos_trabajador')
+              .select('id')
+              .eq('trabajador_id', data.id)
+              .eq('estado', 'aprobado')
+              .limit(1);
+            if (Array.isArray(docs) && docs.length > 0) {
+              setVerificado((prev) => prev || true);
+            }
+          } catch (e) {
+            console.warn('No se pudo consultar verificación en BD pública:', e);
+          }
+          try {
+            const { success: okList, data: allDocs } = await listarTodosDocumentosVerificacion();
+            if (okList) {
+              const tCorreo = String(data.correo || '').trim().toLowerCase();
+              const match = (allDocs || []).some((d) =>
+                String(d?.estado || '').toLowerCase() === 'aprobado' &&
+                String(d?.trabajador?.correo || '').trim().toLowerCase() === tCorreo
+              );
+              if (match) setVerificado((prev) => prev || true);
+            }
+          } catch (e) {
+            console.warn('Fallo cruce de verificación por correo:', e);
+          }
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user?.id === data.id) {
               const { success: sDocs, data: lDocs } = await listarDocumentosTrabajador(data.id);
               if (sDocs) {
                 const ok = Array.isArray(lDocs) && lDocs.some((d) => d.estado === 'aprobado');
-                if (ok) setVerificado(true);
+                if (ok) setVerificado((prev) => prev || true);
               }
             }
-          } catch {}
+          } catch (e) {
+            console.warn('Fallo verificación por documentos del propio usuario:', e);
+          }
         } else {
           console.warn('No se encontraron datos del trabajador');
           setError('Trabajador no encontrado');
@@ -121,7 +179,7 @@ const PerfilTrabajador = () => {
       .subscribe();
 
     return () => {
-      try { supabase.removeChannel(channel); } catch {}
+      try { supabase.removeChannel(channel); } catch (e) { console.warn('Error al remover canal de reseñas:', e); }
     };
   }, [trabajador]);
 
@@ -241,23 +299,32 @@ const PerfilTrabajador = () => {
           <div className="perfil-avatar">
             {trabajador.nombre_completo?.charAt(0).toUpperCase() || 'T'}
           </div>
-          <h1 className="perfil-nombre">{trabajador.nombre_completo}</h1>
+          <h1 className="perfil-nombre">
+            {trabajador.nombre_completo}
+            {verificado && (
+              <FaCheckCircle style={{ marginLeft: 8, color: '#22c55e' }} title="Verificado" />
+            )}
+          </h1>
           <p className="perfil-tipo">Trabajador</p>
           <span className={`estado-cuenta ${estadoCuenta.clase}`}>
             {estadoCuenta.texto}
           </span>
-          {verificado && (
-            <span
-              className="estado-cuenta estado-activo"
-              style={{ marginLeft: 8, backgroundColor: '#22c55e', color: '#fff', borderRadius: 12, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              ✔️ Trabajador Verificado
-            </span>
-          )}
+          <span
+            className={`estado-cuenta ${verificado ? 'estado-activo' : 'estado-inactivo'}`}
+            style={{ marginLeft: 8, borderRadius: 12, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            {verificado ? '✔️ Trabajador Verificado' : 'No verificado'}
+          </span>
         </div>
 
         {/* Información del trabajador */}
         <div className="perfil-info">
+          <div className="info-item">
+            <span className="info-label">Verificación:</span>
+            <span className="info-value">
+              <span className={`estado-cuenta ${verificado ? 'estado-activo' : 'estado-inactivo'}`}>{verificado ? 'Verificado' : 'No verificado'}</span>
+            </span>
+          </div>
           <div className="info-item">
             <span className="info-label">💼 Profesión:</span>
             <span className="info-value">{trabajador.profesion || 'No especificada'}</span>
