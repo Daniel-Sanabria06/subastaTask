@@ -519,6 +519,7 @@ export const getTrabajadorPublico = async (trabajadorId) => {
         profesion,
         habilidades,
         estado_cuenta,
+        verificado,
         created_at
       `)
       .eq('id', trabajadorId)
@@ -549,7 +550,7 @@ export const listarTrabajadoresPublicos = async (filtros = {}) => {
     const { q, ciudad, profesion, habilidad, estado } = filtros || {};
     let query = supabase
       .from('trabajadores')
-      .select('id, nombre_completo, ciudad, edad, profesion, habilidades, estado_cuenta, created_at')
+      .select('id, nombre_completo, ciudad, edad, profesion, habilidades, estado_cuenta, verificado, created_at')
       .order('created_at', { ascending: false });
 
     query = query.eq('estado_cuenta', estado || 'activa');
