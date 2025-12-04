@@ -15,6 +15,7 @@ import {
   //crearOActualizarPerfilCliente 
 } from '../supabase/perfiles';
 
+
 import ClienteProfileForm from '../components/ClienteProfileForm';
 // Reajuste de imports: usamos solo creación/listado aquí. La edición/eliminación se delega a componentes externos.
 import { listarPublicacionesCliente, crearPublicacion, CATEGORIAS_SERVICIO } from '../supabase/publicaciones.js';
