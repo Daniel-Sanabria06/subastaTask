@@ -188,29 +188,14 @@ const ChatHeader = ({ chat, currentUser, onOfferAccepted, onOfferRejected, onOpe
             .eq('id', chat.oferta_id);
           if (updOfferErr) throw updOfferErr;
 
-          // 2) Cerrar la publicación relacionada (activa=false y fecha_cierre)
-          const { data: ofertaRow, error: ofertaFetchErr } = await supabase
-            .from('ofertas')
-            .select('publicacion_id')
-            .eq('id', chat.oferta_id)
-            .single();
-          if (ofertaFetchErr) throw ofertaFetchErr;
-          if (ofertaRow?.publicacion_id) {
-            const { error: updPubErr } = await supabase
-              .from('publicaciones')
-              .update({ activa: false, fecha_cierre: new Date().toISOString(), updated_at: new Date().toISOString() })
-              .eq('id', ofertaRow.publicacion_id);
-            if (updPubErr) throw updPubErr;
-          }
-
-          // 3) Desactivar el chat
+          // 2) Desactivar el chat
           const { error: updChatErr } = await supabase
             .from('chats')
             .update({ is_active: false, updated_at: new Date().toISOString() })
             .eq('id', chat.id);
           if (updChatErr) throw updChatErr;
 
-          // 4) Insertar mensaje del sistema
+          // 3) Insertar mensaje del sistema
           const { error: sysMsgErr } = await supabase
             .from('mensajes')
             .insert([{

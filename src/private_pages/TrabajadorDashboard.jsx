@@ -4,7 +4,7 @@ import { actualizarPerfilUsuario } from '../supabase/autenticacion';
 import { supabase } from '../supabase/cliente';
 import { useNavigate, useLocation } from 'react-router-dom';
 import TrabajadorProfileForm from '../components/TrabajadorProfileForm';
-import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
+// import { esCampoPrivado } from '../supabase/perfiles/camposPrivacidad';
 import PrivacyLabel from '../components/PrivacyLabel';
 import { CATEGORIAS_SERVICIO, listarPublicacionesActivas } from '../supabase/publicaciones.js';
 import { crearOferta, listarOfertasTrabajador } from '../supabase/ofertas.js';
@@ -37,18 +37,18 @@ import '../styles/Dashboard.css';
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [documentos, setDocumentos] = useState([]);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [docTipo, setDocTipo] = useState('identidad');
-  const [docFile, setDocFile] = useState(null);
   // Estado para reseñas
   const [reseñasLoading, setReseñasLoading] = useState(false);
   const [reseñas, setReseñas] = useState([]);
   const [reseñasPage, setReseñasPage] = useState(1);
   const [reseñasTotal, setReseñasTotal] = useState(0);
   const [reseñasStats, setReseñasStats] = useState({ promedio: 0, total: 0 });
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [documentos, setDocumentos] = useState([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docTipo, setDocTipo] = useState('identidad');
+  const [docFile, setDocFile] = useState(null);
   const [formData, setFormData] = useState({
     // Datos básicos del trabajador
     nombre_completo: '',
@@ -314,6 +314,23 @@ import '../styles/Dashboard.css';
     cargarDocs();
   }, [activeTab, userData]);
 
+  // Suscribirse en tiempo real a cambios en documentos del trabajador
+  useEffect(() => {
+    if (!userData?.user?.id) return;
+    const channel = supabase
+      .channel(`docs-trab-${userData.user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'documentos_trabajador', filter: `trabajador_id=eq.${userData.user.id}` }, async () => {
+        try {
+          const { success, data } = await listarDocumentosTrabajador(userData.user.id);
+          if (success) setDocumentos(data || []);
+        } catch {}
+      })
+      .subscribe();
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [userData?.user?.id]);
+
   /**
    * EFECTO: CARGAR MIS OFERTAS CUANDO SE ABRE LA SUBVISTA
    */
@@ -386,6 +403,7 @@ const handleChange = (e) => {
     }
   };
 
+  const tieneDocActivo = Array.isArray(documentos) && documentos.some(d => d.estado === 'pendiente' || d.estado === 'aprobado');
   if (!userData) return <div className="loading-container">Cargando...</div>;
 
   return (
@@ -427,11 +445,18 @@ const handleChange = (e) => {
             </div>
           </div>
           {/* Mostrar si tiene perfil específico creado */}
-          <div className="profile-status">
+          <div className="profile-status" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {userData.specificProfile ? (
               <span className="status-badge success">✅ Perfil Profesional Completo</span>
             ) : (
               <span className="status-badge warning">⚠️ Perfil Profesional Pendiente</span>
+            )}
+            {Array.isArray(documentos) && documentos.some(d => d.estado === 'aprobado') ? (
+              <span className="status-badge success">✔️ Trabajador Verificado</span>
+            ) : (
+              Array.isArray(documentos) && documentos.some(d => d.estado === 'pendiente') && (
+                <span className="status-badge warning">⏳ Verificación pendiente</span>
+              )
             )}
           </div>
         </div>
@@ -863,9 +888,25 @@ const handleChange = (e) => {
 
             <div className="profile-header" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
               <h3>Documentos de Verificación (PDF)</h3>
-              <button className="btn btn-secondary" onClick={() => setShowUploadModal(true)}>
-                Subir PDF de verificación
-              </button>
+              <div>
+                <button className="btn btn-secondary" onClick={() => setShowUploadModal(true)} disabled={tieneDocActivo}>
+                  Subir PDF de verificación
+                </button>
+                <button className="btn btn-secondary" style={{ marginLeft: 8 }} onClick={async () => {
+                  try {
+                    setDocsLoading(true);
+                    const { success, data } = await listarDocumentosTrabajador(userData.user.id);
+                    if (success) setDocumentos(data || []);
+                  } finally {
+                    setDocsLoading(false);
+                  }
+                }}>Actualizar lista</button>
+                {tieneDocActivo && (
+                  <div className="text-muted" style={{ marginTop: 6 }}>
+                    Ya tienes un documento en revisión o aprobado.
+                  </div>
+                )}
+              </div>
             </div>
 
             {docsLoading ? (

@@ -19,6 +19,7 @@ import ClienteProfileForm from '../components/ClienteProfileForm';
 // Reajuste de imports: usamos solo creación/listado aquí. La edición/eliminación se delega a componentes externos.
 import { listarPublicacionesCliente, crearPublicacion, CATEGORIAS_SERVICIO } from '../supabase/publicaciones.js';
 import { listarTrabajadoresPublicos } from '../supabase/supabaseClient.js';
+import { FaCheckCircle } from 'react-icons/fa';
 // Nuevos componentes extraídos a otra carpeta para mantener el dashboard limpio
 import EditorPublicacion from '../caracteristicas/publicaciones/EditorPublicacion.jsx';
 import EliminarPublicacionButton from '../caracteristicas/publicaciones/EliminarPublicacionButton.jsx';
@@ -102,6 +103,29 @@ import '../styles/Dashboard.css';
   const generarAvatarUsuario = (userId) => {
     const semilla = userId ? userId.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 1;
     return `https://picsum.photos/seed/${semilla}/100/100`;
+  };
+
+  const getEstadoClass = (pub) => {
+    const estado = pub?.estado_calculado ?? (pub?.activa ? 'activa' : 'eliminada');
+    if (estado === 'activa') return 'status-active';
+    if (estado === 'con_ofertas') return 'status-with-offers';
+    return 'status-inactive';
+  };
+
+  const getEstadoTexto = (pub) => {
+    const estado = pub?.estado_calculado ?? (pub?.activa ? 'activa' : 'eliminada');
+    switch (estado) {
+      case 'activa':
+        return 'Activa';
+      case 'con_ofertas':
+        return 'Con ofertas';
+      case 'finalizada':
+        return 'Finalizada';
+      case 'eliminada':
+        return 'Eliminada';
+      default:
+        return 'Activa';
+    }
   };
 
   const cargarTrabajadoresInicial = async () => {
@@ -730,14 +754,14 @@ import '../styles/Dashboard.css';
                                 </button>
                               </div>
                               <div className="item-actions" style={{ display: 'flex', gap: 8 }}>
-
-{/* En publicaciones finalizadas o eliminadas NO se muestran Editar/Eliminar */}
-{(pub?.estado_calculado !== 'finalizada' && pub?.estado_calculado !== 'eliminada') && (
-  <>
+                              
+{/* En "Eliminadas" (por filtro o por estado calculado del item) no se muestran Editar/Eliminar */}
+{(listFiltroEstado !== 'eliminada' || pub?.estado_calculado !== 'eliminada') && (
+  <> 
     {/* Editar ahora solo abre el editor extraído */}
     <button
       className="btn btn-secondary"
-      onClick={() => { setEditingPub(pub); setPubSubview('edit'); }}
+      onClick={() => { setEditingPub(pub.id); setPubSubview('edit'); }}
     >
       Editar
     </button>
@@ -963,7 +987,12 @@ import '../styles/Dashboard.css';
                     {trabajadoresLista.map((t) => (
                       <div key={t.id} className="item-card">
                         <div className="item-card-header">
-                          <h3 className="item-title">{t?.nombre_completo}</h3>
+                          <h3 className="item-title">
+                            {t?.nombre_completo}
+                            {t?.verificado ? (
+                              <FaCheckCircle style={{ marginLeft: 6, color: '#22c55e' }} title="Verificado" />
+                            ) : null}
+                          </h3>
                           <span className={`status-badge ${t?.estado_cuenta === 'activa' ? 'status-active' : 'status-inactive'}`}>
                             {t?.estado_cuenta}
                           </span>
@@ -1184,30 +1213,3 @@ import '../styles/Dashboard.css';
 };
 
 export default ClienteDashboard;
-  // Helpers de estado visual basado en estado_calculado
-  const getEstadoClass = (pub) => {
-    switch (pub?.estado_calculado) {
-      case 'con_ofertas':
-        return 'status-with-offers';
-      case 'finalizada':
-      case 'eliminada':
-        return 'status-inactive';
-      case 'activa':
-      default:
-        return 'status-active';
-    }
-  };
-
-  const getEstadoTexto = (pub) => {
-    switch (pub?.estado_calculado) {
-      case 'con_ofertas':
-        return 'Con ofertas';
-      case 'finalizada':
-        return 'Finalizada';
-      case 'eliminada':
-        return 'Eliminada';
-      case 'activa':
-      default:
-        return 'Activa';
-    }
-  };
