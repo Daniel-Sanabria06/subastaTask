@@ -33,16 +33,30 @@ export const CATEGORIAS_SERVICIO = [
 ];
 
 /**
- * LISTAR PUBLICACIONES DEL CLIENTE AUTENTICADO
- * Retorna las publicaciones pertenecientes al usuario actual con perfil de cliente,
- * ordenadas por fecha de creación descendente.
+ * Historial de publicaciones del cliente (API).
+ * Obtiene todas las publicaciones creadas por el cliente autenticado y calcula su "estado_calculado"
+ * a partir de la actividad y las ofertas: "activa", "con_ofertas", "finalizada" o "eliminada".
  *
- * @param {Object} options - Opciones de filtrado
- * @param {boolean} [options.soloActivas=false] - Si es true, solo devuelve publicaciones activas
- * @param {string} [options.categoria] - Filtrar por categoría específica
- * @param {string} [options.estado] - Filtrar por estado ('activa', 'con_ofertas', 'finalizada', 'eliminada')
- * @param {string} [options.ordenarPor='fecha'] - Campo por el cual ordenar ('fecha', 'categoria')
- * @returns {Promise<{success: boolean, data: any[] | null, error: Error | null}>}
+ * Seguridad y autenticación:
+ * - Requiere sesión activa; se apoyan las políticas RLS de Supabase para que solo se consulten
+ *   publicaciones del cliente actual.
+ * - No expone publicaciones de otros clientes.
+ *
+ * Opciones de filtrado y ordenamiento:
+ * - options.soloActivas: boolean para devolver únicamente publicaciones activas.
+ * - options.categoria: string de CATEGORIAS_SERVICIO (o "todas") para filtrar por categoría.
+ * - options.estado: uno de "activa" | "con_ofertas" | "finalizada" | "eliminada" para filtrar tras el cálculo.
+ * - options.ordenarPor: "fecha" (por defecto) o "categoria".
+ *
+ * Cálculo de estado_calculado:
+ * - Si pub.activa === true:
+ *   - "con_ofertas" si existen ofertas para esa publicación del cliente; en otro caso "activa".
+ * - Si pub.activa === false:
+ *   - "finalizada" si hay alguna oferta aceptada para la publicación; de lo contrario "eliminada".
+ *
+ * Retorno:
+ * - { success, data, error } con data ya filtrada y ordenada según opciones, y cada item con
+ *   { estado_calculado, tiene_ofertas }.
  */
 // Helpers de validación y manejo de errores
 const normalizarError = (error) => (error instanceof Error ? error : new Error(String(error)));

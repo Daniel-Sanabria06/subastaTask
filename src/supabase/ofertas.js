@@ -103,11 +103,27 @@ export const crearOferta = async ({ publicacion_id, cliente_id, monto_oferta, me
 };
 
 /**
- * LISTAR OFERTAS PARA UNA PUBLICACIÓN (CLIENTE)
- * Retorna las ofertas asociadas a una publicación del cliente autenticado.
+ * Ofertas de una publicación para el cliente autenticado (API).
+ * Obtiene todas las ofertas recibidas para una publicación propiedad del cliente en sesión.
  *
- * @param {string} publicacion_id - ID de la publicación
- * @returns {Promise<{success: boolean, data: any[] | null, error: Error | null}>}
+ * Precondiciones y seguridad:
+ * - Requiere sesión activa y perfil "cliente"; RLS asegura que solo se consulten ofertas
+ *   de publicaciones del cliente actual.
+ * - publicacion_id es obligatorio; si falta, se produce error controlado.
+ *
+ * Campos seleccionados:
+ * - id, publicacion_id, cliente_id, trabajador_id, monto_oferta, mensaje, estado, created_at
+ * - trabajador: datos mínimos del ofertante (id, nombre_completo)
+ *
+ * Ordenamiento:
+ * - Descendente por created_at (más recientes primero).
+ *
+ * Uso en el historial:
+ * - Se emplea en la vista de detalle de una publicación del cliente para listar las ofertas asociadas.
+ * - Si la publicación está cerrada/eliminada, la vista es de solo lectura; este método sigue retornando datos.
+ *
+ * @param {string} publicacion_id - ID de la publicación del cliente
+ * @returns {Promise<{success: boolean, data: Array | null, error: Error | null}>}
  */
 export const listarOfertasClientePorPublicacion = async (publicacion_id) => {
   try {
